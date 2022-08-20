@@ -1,0 +1,345 @@
+#// bash$ ./test-new-commit
+#// PS> bash test-new-commit
+NewCommitCommand="../bin/new-commit"
+
+function  AllTest() {
+    Test_Error
+    Test_Assert
+
+    Test_1
+    Test_InWorkingDirectory
+    Test_InWorkingSubDirectory
+    Test_NoUpdate
+    Test_Diff
+    Test_Diff_InWorkingDirectory
+    Test_Diff_InWorkingSubDirectory
+    EndOfTest
+}
+
+function  Test_1() {
+    rm -rf "_testing"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x" > "_testing/example.c"
+    echo "build" > "_testing/.gitignore"
+    echo ""
+    echo "Test_1"
+
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}"
+    popd > /dev/null
+
+    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/.gitignore"
+    AssertNotExist  "_testing/.commit/build"
+    AssertNotExist  "_testing/.commit/build/out"
+    rm -rf "_testing"
+}
+
+function  Test_InWorkingDirectory() {
+    rm -rf "_testing"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x" > "_testing/example.c"
+    echo "build" > "_testing/.gitignore"
+
+    pushd "_testing" > /dev/null
+    git init  > /dev/null  2>&1
+    git add "."  > /dev/null  2>&1
+    git commit  -m "temporary"  > /dev/null  2>&1
+    echo  ""
+    echo  "Test_InWorkingDirectory"
+
+    "../${NewCommitCommand}"
+    AssertExist  ".git"
+    popd > /dev/null
+
+    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/.gitignore"
+    AssertNotExist  "_testing/.commit/build"
+    AssertNotExist  "_testing/.commit/build/out"
+    rm -rf "_testing"
+}
+
+function  Test_InWorkingSubDirectory() {
+    rm -rf "_testing"
+    mkdir -p "_testing/sub/build"
+    echo "x" > "_testing/sub/build/out"
+    echo "x" > "_testing/sub/example.c"
+    echo "build" > "_testing/sub/.gitignore"
+
+    pushd "_testing" > /dev/null
+    git init  > /dev/null  2>&1
+    git add "."  > /dev/null  2>&1
+    git commit  -m "temporary"  > /dev/null  2>&1
+    cd  "sub"
+    echo  ""
+    echo  "Test_InWorkingSubDirectory"
+
+    "../../${NewCommitCommand}"
+    cd  ".."
+    AssertExist  ".git"
+    popd > /dev/null
+
+    AssertExist     "_testing/sub/.commit/example.c"
+    AssertExist     "_testing/sub/.commit/.gitignore"
+    AssertNotExist  "_testing/sub/.commit/build"
+    AssertNotExist  "_testing/sub/.commit/build/out"
+    rm -rf "_testing"
+}
+
+function  Test_NoUpdate() {  #// Base test is "Test_1"
+    rm -rf "_testing"
+    mkdir -p "_testing/build"
+    mkdir -p "_testing/.commit"
+    echo "x"       > "_testing/example.c"
+    echo "x"       > "_testing/build/out"
+    echo ".commit" > "_testing/.gitignore"
+    echo "build"  >> "_testing/.gitignore"
+    echo "x"       > "_testing/.commit/example.c"
+    echo ".commit" > "_testing/.commit/.gitignore"
+    echo "build"  >> "_testing/.commit/.gitignore"
+    echo ""
+    echo "Test_NoUpdate"
+
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}"
+    popd > /dev/null
+
+    AssertNotExist  "_testing/.commit_new/"
+
+    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/.gitignore"
+    AssertNotExist  "_testing/.commit/.commit"
+    AssertNotExist  "_testing/.commit/build"
+    AssertNotExist  "_testing/.commit/build/out"
+    rm -rf "_testing"
+}
+
+function  Test_Diff() {  #// Base test is "Test_1"
+    rm -rf "_testing"
+    mkdir -p "_testing/build"
+    mkdir -p "_testing/.commit"
+    echo "x"       > "_testing/example.c"
+    echo "x"       > "_testing/build/out"
+    echo ".commit" > "_testing/.gitignore"
+    echo "build"  >> "_testing/.gitignore"
+    echo "2"       > "_testing/.commit/example.c"
+    echo ""
+    echo "Test_Diff"
+
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}"
+    popd > /dev/null
+
+    AssertExist     "_testing/.commit/example.c"
+    AssertNotExist  "_testing/.commit/.gitignore"
+
+    AssertExist     "_testing/.commit_new/example.c"
+    AssertExist     "_testing/.commit_new/.gitignore"
+    AssertNotExist  "_testing/.commit_new/.commit"
+    AssertNotExist  "_testing/.commit_new/build"
+    AssertNotExist  "_testing/.commit_new/build/out"
+    rm -rf "_testing"
+}
+
+function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Test_InWorkingDirectory"
+    rm -rf "_testing"
+    mkdir -p "_testing/build"
+    mkdir -p "_testing/.commit"
+    echo "x"       > "_testing/example.c"
+    echo "x"       > "_testing/build/out"
+    echo ".commit" > "_testing/.gitignore"
+    echo "build"  >> "_testing/.gitignore"
+    echo "2"       > "_testing/.commit/example.c"
+
+    pushd "_testing" > /dev/null
+    git init  > /dev/null  2>&1
+    git add "."  > /dev/null  2>&1
+    git commit  -m "temporary"  > /dev/null  2>&1
+    echo  ""
+    echo  "Test_Diff_InWorkingDirectory"
+
+    "../${NewCommitCommand}"
+    AssertExist  ".git"
+    popd > /dev/null
+
+    AssertExist     "_testing/.commit/example.c"
+    AssertNotExist  "_testing/.commit/.gitignore"
+
+    AssertExist     "_testing/.commit_new/example.c"
+    AssertExist     "_testing/.commit_new/.gitignore"
+    AssertNotExist  "_testing/.commit_new/.commit"
+    AssertNotExist  "_testing/.commit_new/build"
+    AssertNotExist  "_testing/.commit_new/build/out"
+    rm -rf "_testing"
+}
+
+function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWorkingDirectory" and "Test_InWorkingSubDirectory"
+    rm -rf "_testing"
+    mkdir -p "_testing/sub/build"
+    mkdir -p "_testing/sub/.commit"
+    echo "x"       > "_testing/sub/example.c"
+    echo "x"       > "_testing/sub/build/out"
+    echo ".commit" > "_testing/sub/.gitignore"
+    echo "build"  >> "_testing/sub/.gitignore"
+    echo "2"       > "_testing/sub/.commit/example.c"
+
+    pushd "_testing" > /dev/null
+    git init  > /dev/null  2>&1
+    git add "."  > /dev/null  2>&1
+    git commit  -m "temporary"  > /dev/null  2>&1
+    cd  "sub"
+    echo  ""
+    echo  "Test_Diff_InWorkingSubDirectory"
+
+    "../../${NewCommitCommand}"
+    cd  ".."
+    AssertExist  ".git"
+    popd > /dev/null
+
+    AssertExist     "_testing/sub/.commit/example.c"
+    AssertNotExist  "_testing/sub/.commit/.gitignore"
+
+    AssertExist     "_testing/sub/.commit_new/example.c"
+    AssertExist     "_testing/sub/.commit_new/.gitignore"
+    AssertNotExist  "_testing/sub/.commit_new/.commit"
+    AssertNotExist  "_testing/sub/.commit_new/build"
+    AssertNotExist  "_testing/sub/.commit_new/build/out"
+    rm -rf "_testing"
+}
+
+function  Test_Assert() {
+    rm -rf "_testing"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+
+    AssertExist  "_testing/build/out"
+    AssertNotExist  "_testing/build/not_found"
+    AssertInstalled  "cat"
+
+    StartErrorTest
+        AssertExist  "_testing/build/not_found"
+    EndErrorTest  'ERROR: Not found "_testing/build/not_found"'
+    StartErrorTest
+        AssertNotExist  "_testing/build/out"
+    EndErrorTest  'ERROR: Found "_testing/build/out"'
+    StartErrorTest
+        AssertInstalled  "cats"
+    EndErrorTest  'ERROR: Not installed "cats" command'
+}
+
+function  AssertExist() {
+    local  path="$1"
+
+    if [ ! -e "${path}" ]; then
+        Error  "ERROR: Not found \"${path}\""
+    fi
+}
+
+function  AssertNotExist() {
+    local  path="$1"
+
+    if [ -e "${path}" ]; then
+        Error  "ERROR: Found \"${path}\""
+    fi
+}
+
+function  AssertInstalled() {
+    local  checkingCommand="$1"
+    local  exists=${False}
+    which "${checkingCommand}" > /dev/null  &&  exists=${True}
+
+    if [ "${exists}" == ${False} ]; then
+        Error  "ERROR: Not installed \"${checkingCommand}\" command"
+    fi
+}
+
+function  Test_Error() {
+    local  currentErrorCount="${ErrorCount}"
+
+    #// Test
+    Error  "Test_Error"
+    if [ ${ErrorCount} == ${currentErrorCount} ]; then
+        echo  "Error: in Error"
+        exit  1
+    fi
+    ErrorCount="${currentErrorCount}"
+
+    #// Test
+    currentErrorCount="${ErrorCount}"
+    StartErrorTest
+    EndErrorTest  "Test of no error error"
+    if [ ${ErrorCount} == ${currentErrorCount} ]; then
+        echo  "Error: test 1 in StartErrorTest or EndErrorTest"
+        exit  1
+    fi
+    ErrorCount="${currentErrorCount}"
+
+    #// Test
+    currentErrorCount="${ErrorCount}"
+    StartErrorTest
+    Error  "Test of StartErrorTest (2)"
+    EndErrorTest  "Test of StartErrorTest (2)"
+    if [ ${ErrorCount} != ${currentErrorCount} ]; then
+        echo  "Error: test 2 in StartErrorTest or EndErrorTest"
+        exit  1
+    fi
+    ErrorCount="${currentErrorCount}"
+
+    echo  "Passed Test_Error."
+}
+
+function  Error() {
+    local  errorMessage="$1"
+    if [ "${ErrorCountBeforeStart}" == "${NotInErrorTest}" ]; then
+
+        echo  "${errorMessage}"
+    fi
+    LastErrorMessage="${errorMessage}"
+    ErrorCount=$(( ${ErrorCount} + 1 ))
+}
+ErrorCount=0
+LastErrorMessage=""
+
+function  StartErrorTest() {
+    ErrorCountBeforeStart=${ErrorCount}
+}
+NotInErrorTest=-1
+ErrorCountBeforeStart=${NotInErrorTest}
+
+function  EndErrorTest() {
+    local  expectedErrorMessage="$1"
+    local  errorCountBeforeStart="${ErrorCountBeforeStart}"
+    ErrorCountBeforeStart="${NotInErrorTest}"
+
+    if [ "${ErrorCount}" == "${errorCountBeforeStart}" ]; then
+        if [ "${expectedErrorMessage}" == "" ]; then
+            Error  "ERROR: EndErrorTest has no parameter"
+        else
+            Error  "ERROR: Expected an error of \"${expectedErrorMessage}\" but no error"
+        fi
+    elif [ "${expectedErrorMessage}" != "${LastErrorMessage}" ]; then
+        if [ "${expectedErrorMessage}" == "" ]; then
+            Error  "ERROR: EndErrorTest has no parameter. \"${LastErrorMessage}\" error was occurred"
+        else
+            Error  "ERROR: Expected an error of \"${expectedErrorMessage}\" but \"${LastErrorMessage}\""
+        fi
+    else
+        ErrorCount="${errorCountBeforeStart}"
+    fi
+}
+
+function  EndOfTest() {
+    echo  ""
+    echo  "ErrorCount: ${ErrorCount}"
+    if [ "${ErrorCount}" == "0" ]; then
+        echo  "Pass."
+    fi
+    rm -rf "_testing"
+}
+
+True=0
+False=1
+
+AllTest

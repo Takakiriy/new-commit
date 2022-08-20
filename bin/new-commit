@@ -1,0 +1,105 @@
+#bash
+
+function  NewCommit() {
+    AssertInstalled  "git"
+    local  currentFolder="$(pwd)"
+    local  gitWorkingRootPath="$(GetGitWorkingRootPath)"
+    local  outputFolderName
+    if [ ! -e ".commit" ]; then
+        outputFolderName=".commit"
+    else
+        outputFolderName=".commit_new"
+    fi
+
+    #// Copy files by "git checkout-index"
+    if [ "${gitWorkingRootPath}" == "" ]; then
+        rm -rf  "${outputFolderName}"
+        git init  > /dev/null  2>&1
+        git add "."  > /dev/null  2>&1
+        git commit  -m "temporary"  > /dev/null  2>&1
+        mkdir  "${outputFolderName}"
+
+        git checkout-index -a -f --prefix="${outputFolderName}/"
+        rm -rf  ".git"
+    else
+        rm -rf  "${outputFolderName}"
+        if [ "${currentFolder}" == "${gitWorkingRootPath}" ]; then
+
+            git checkout-index -a -f --prefix="${outputFolderName}/"
+        else
+            local  relativePath="$( GetRelativePath "${currentFolder}" "${gitWorkingRootPath}" )"
+            local  gitOutputPath="${gitWorkingRootPath}/.commit_new/${relativePath}"
+
+            git checkout-index -a -f --prefix=".commit_new/"
+            mv  "${gitOutputPath}"  "${outputFolderName}"
+        fi
+    fi
+
+    #// Show different file names
+    if [ "${outputFolderName}" == ".commit" ]; then
+        echo  'Created new ".commit" folder.'
+        echo  'This will be treated as base commit.'
+    fi
+
+    if [ "${outputFolderName}" == ".commit_new" ]; then
+        local  diff_output="$( diff -qr  ".commit"  ".commit_new" )"
+
+        if [ "${diff_output}" == "" ]; then
+            rm -rf  ".commit_new"
+            echo  'Deleted ".commit_new" folder.'
+            echo  'SAME as ".commit" folder.'
+        else
+            echo  'Created new ".commit_new" folder.'
+            echo  'Changes for .commit:'
+            echoWithIndent  "${diff_output}"  "    "
+        fi;
+    fi
+}
+
+function  echoWithIndent() {
+    local  message="$1"
+    local  indent="$2"
+
+    IFS=$'\n'
+    for  line  in ${message}; do
+        echo "${indent}${line}"
+    done
+    unset IFS
+}
+
+function  GetGitWorkingRootPath() {
+    local  path="$(pwd)"
+    while [ "${path}" != "" ]; do
+
+        if [ -e "${path}/.git" ]; then
+            echo  "${path}"
+            return
+        fi
+        path="${path/*}" 
+    done
+
+    echo  ""
+}
+
+function  GetRelativePath() {
+    local  fullPath="$1"
+    local  basePath="$2"
+
+    local  relativePath=$( echo "$fullPath" | sed -e "s%^${basePath}/%%" )
+    echo  "${relativePath}"
+}
+
+function  AssertInstalled() {
+    local  checkingCommand="$1"
+    local  exists=${False}
+    which "${checkingCommand}" > /dev/null  &&  exists=${True}
+
+    if [ "${exists}" == ${False} ]; then
+        Error  "ERROR: Not installed \"${checkingCommand}\" command"
+    fi
+}
+
+True=0
+False=1
+
+NewCommit
