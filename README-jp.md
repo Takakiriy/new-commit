@@ -51,6 +51,9 @@ flowchart TD;
     c <-- 比較 --> d;
 ```
 
+`.commit` フォルダーや `.commit_new` フォルダーの中のファイルは、
+読み取り専用になります。
+
 
 ## 動作環境
 
@@ -69,6 +72,9 @@ flowchart TD;
 
 ## 使い方
 
+### new-commit コマンド
+
+.gitignore を踏まえたコピーをするときの
 `new-commit` コマンドは、パラメーターを指定しません。
 状況に応じて動きが変わります。
 
@@ -93,6 +99,7 @@ flowchart TD;
     `git status` や `git diff` の比較対象に相当する内容は変化しません
 - `.commit` フォルダー は任意のフォルダーに移動することができます
 - git でステージングされていない変更も `.commit` フォルダーに入ります
+- `.commit` フォルダーの中のファイルは、読み取り専用になります
 
 コマンドの例:
 
@@ -115,6 +122,7 @@ flowchart TD;
 
 - 異なるファイルに関する表示内容は、`diff -qr` コマンドと同じです
 - git でステージングされていない変更も `.commit_new` フォルダーに入ります
+- `.commit_new` フォルダーの中のファイルは、読み取り専用になります
 
 コマンドの例:
 
@@ -139,3 +147,18 @@ flowchart TD;
     $ new-commit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
+
+
+## push コマンド
+
+    new-commit push __MainFolder__
+
+push コマンドを実行すると `.commit_new` フォルダーの内容を `__MainFolder__`
+にコピーして、ファイルの読み取り専用属性をオフにします。
+また、`.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
+`.commit_new` フォルダーを削除します。
+
+- `__MainFolder__` は実際のフォルダーのパスに置き換えてください
+- `__MainFolder__` にあったファイルのうち、`.commit_new` フォルダーに無いファイルは
+    削除されます
+- `__MainFolder__` の直下の `.git` フォルダーは、変化しません

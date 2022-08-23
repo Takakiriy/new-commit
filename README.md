@@ -51,6 +51,8 @@ flowchart TD;
     c <-- Compare --> d;
 ```
 
+Files in `.commit` and `.commit_new` folders are read-only.
+
 
 ## Environment
 
@@ -69,7 +71,10 @@ flowchart TD;
 
 ## Usage
 
-The `new-commit` command takes no parameters.
+### new-commit command
+
+`new-commit` command of copying using .gitignore
+takes no parameters.
 The movement changes depending on the situation.
 
 The `.gitignore` file should write
@@ -94,6 +99,7 @@ This `.commit` folder is the comparison target of `git status` and `git diff`.
     `git status` or `git diff` will not change.
 - `.commit` folder can be moved to any folder
 - Unstaged changes in git also copy into the `.commit` folder
+- Files in `.commit` folders are turned on read-only attribute
 
 Sample commands:
 
@@ -116,6 +122,7 @@ This behavior corresponds to `git status` and `git diff`.
 
 - The output for different files is the same as the `diff -qr` command
 - Unstaged changes in git also copy into the `.commit_new` folder
+- Files in `.commit_new` folders are turned on read-only attribute
 
 Sample commands:
 
@@ -141,3 +148,18 @@ the `.commit_new` folder will be deleted immediately.
     $ new-commit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
+
+
+## push command
+
+    new-commit push __MainFolder__
+
+Push command copies files in `.commit_new` folder to `__MainFolder__`
+and turn off the read-only attribute of the file.
+Also move files in the `.commit_new` folder into the `.commit` folder
+and delete `.commit_new` folder.
+
+- Replace `__MainFolder__` to the actual folder path
+- Files that there are in `__MainFolder__` but not in `.commit_new` folder
+    is deleted
+- `.git` folder directly under `__MainFolder__` is not changed

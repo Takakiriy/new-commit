@@ -13,6 +13,7 @@ function  AllTest() {
     Test_Diff
     Test_Diff_InWorkingDirectory
     Test_Diff_InWorkingSubDirectory
+    Test_Push
     EndOfTest
 }
 
@@ -33,6 +34,8 @@ function  Test_1() {
     AssertExist     "_testing/.commit/.gitignore"
     AssertNotExist  "_testing/.commit/build"
     AssertNotExist  "_testing/.commit/build/out"
+    AssertReadOnly  "_testing/.commit/example.c"
+    AssertReadOnly  "_testing/.commit/.gitignore"
     rm -rf "_testing"
 }
 
@@ -58,6 +61,8 @@ function  Test_InWorkingDirectory() {
     AssertExist     "_testing/.commit/.gitignore"
     AssertNotExist  "_testing/.commit/build"
     AssertNotExist  "_testing/.commit/build/out"
+    AssertReadOnly  "_testing/.commit/example.c"
+    AssertReadOnly  "_testing/.commit/.gitignore"
     rm -rf "_testing"
 }
 
@@ -85,6 +90,8 @@ function  Test_InWorkingSubDirectory() {
     AssertExist     "_testing/sub/.commit/.gitignore"
     AssertNotExist  "_testing/sub/.commit/build"
     AssertNotExist  "_testing/sub/.commit/build/out"
+    AssertReadOnly  "_testing/sub/.commit/example.c"
+    AssertReadOnly  "_testing/sub/.commit/.gitignore"
     rm -rf "_testing"
 }
 
@@ -209,6 +216,59 @@ function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWor
     rm -rf "_testing"
 }
 
+function  Test_Push() {
+    rm -rf "_testing"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x" > "_testing/example.c"
+    echo ".commit" > "_testing/.gitignore"
+    echo "build"  >> "_testing/.gitignore"
+    mkdir -p "_testing/_pushed/.git"
+    echo "git" > "_testing/_pushed/.git/files"
+    echo "old" > "_testing/_pushed/old_files"
+    echo ""
+    echo "Test_Push"
+
+    pushd "_testing" > /dev/null
+
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"
+
+    echo "after" > "example.c"
+    echo "new" > "new.c"
+
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"
+
+    echo  "$ new-commit push _pushed"
+    "../${NewCommitCommand}" push "_pushed"
+
+    popd > /dev/null
+
+    AssertNotExist  "_testing/.commit_new"
+
+    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/new.c"
+    AssertExist     "_testing/.commit/.gitignore"
+    AssertNotExist  "_testing/.commit/build"
+    AssertNotExist  "_testing/.commit/build/out"
+    AssertReadOnly  "_testing/.commit/example.c"
+    AssertReadOnly  "_testing/.commit/new.c"
+    AssertReadOnly  "_testing/.commit/.gitignore"
+
+    AssertExist        "_testing/_pushed/example.c"
+    AssertExist        "_testing/_pushed/new.c"
+    AssertExist        "_testing/_pushed/.gitignore"
+    AssertExist        "_testing/_pushed/.git"
+    AssertNotExist     "_testing/_pushed/old_files"
+    AssertNotExist     "_testing/_pushed/build"
+    AssertNotExist     "_testing/_pushed/build/out"
+    AssertNotReadOnly  "_testing/_pushed/example.c"
+    AssertNotReadOnly  "_testing/_pushed/new.c"
+    AssertNotReadOnly  "_testing/_pushed/.gitignore"
+    rm -rf "_testing"
+}
+
 function  Test_Assert() {
     rm -rf "_testing"
     mkdir -p "_testing/build"
@@ -227,6 +287,18 @@ function  Test_Assert() {
     StartErrorTest
         AssertInstalled  "cats"
     EndErrorTest  'ERROR: Not installed "cats" command'
+
+    StartErrorTest
+        AssertReadOnly  "_testing/build/out"
+    EndErrorTest  'ERROR: Not read only file "_testing/build/out"'
+    chmod -w  "_testing/build/out"
+    AssertReadOnly  "_testing/build/out"
+
+    StartErrorTest
+        AssertNotReadOnly  "_testing/build/out"
+    EndErrorTest  'ERROR: Read only file "_testing/build/out"'
+    chmod +w  "_testing/build/out"
+    AssertNotReadOnly  "_testing/build/out"
 }
 
 function  AssertExist() {
@@ -242,6 +314,30 @@ function  AssertNotExist() {
 
     if [ -e "${path}" ]; then
         Error  "ERROR: Found \"${path}\""
+    fi
+}
+
+function  AssertReadOnly() {
+    local  path="$1"
+    local  writable=${False}
+
+    local  attributes="$(ls -la "${path}")"
+    echo "${attributes:0:10}" | grep w  > /dev/null  &&  writable=${True}
+
+    if [ "${writable}" == "${True}" ]; then
+        Error  "ERROR: Not read only file \"${path}\""
+    fi
+}
+
+function  AssertNotReadOnly() {
+    local  path="$1"
+    local  writable=${False}
+
+    local  attributes="$(ls -la "${path}")"
+    echo "${attributes:0:10}" | grep w  > /dev/null  &&  writable=${True}
+
+    if [ "${writable}" == "${False}" ]; then
+        Error  "ERROR: Read only file \"${path}\""
     fi
 }
 
@@ -336,7 +432,6 @@ function  EndOfTest() {
     if [ "${ErrorCount}" == "0" ]; then
         echo  "Pass."
     fi
-    rm -rf "_testing"
 }
 
 True=0

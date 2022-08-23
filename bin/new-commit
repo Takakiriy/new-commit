@@ -1,7 +1,18 @@
 #bash
 
-function  NewCommit() {
+function  Main() {
+    local  subCommand="$1"
     AssertInstalled  "git"
+    if [ "${subCommand}" == "" ]; then
+        NewCommit
+    elif [ "${subCommand}" == "push" ]; then
+        Push  "$@"
+    else
+        Error  "ERROR: Unknown sub command \"${subCommand}\""
+    fi
+}
+
+function  NewCommit() {
     local  currentFolder="$(pwd)"
     local  gitWorkingRootPath="$(GetGitWorkingRootPath)"
     local  outputFolderName
@@ -35,6 +46,9 @@ function  NewCommit() {
         fi
     fi
 
+    #// Set read only
+    find "${outputFolderName}" -type f | xargs  chmod -w
+
     #// Show different file names
     if [ "${outputFolderName}" == ".commit" ]; then
         echo  'Created new ".commit" folder.'
@@ -52,8 +66,31 @@ function  NewCommit() {
             echo  'Created new ".commit_new" folder.'
             echo  'Changes for .commit:'
             echoWithIndent  "${diff_output}"  "    "
-        fi;
+        fi
     fi
+}
+
+function  Push() {
+    local  mainFolderPath="$2"
+    if [ "${mainFolderPath}" == "" ]; then
+        Error  "ERROR: No main folder  Command: new-commit push __MainFolder__"
+    fi
+    AssertExist  "${mainFolderPath}"
+    AssertExist  ".commit"
+    AssertExist  ".commit_new"
+    echo  "Copied files and disabled read only to \"${mainFolderPath}\" folder"
+    echo  "Moved \".commit_new\" to \".commit\" folder"
+
+    #// Copy files and disable read only
+    ls -a "${mainFolderPath}" | grep -v "\\.git\\|\\.\\|\\.." | xargs -I{} \
+        rm -rf  "${mainFolderPath}/{}"
+    rsync -a  ".commit_new/"  "${mainFolderPath}/"
+    find "${mainFolderPath}" -type f | xargs \
+        chmod +w
+
+    #// Update .commit folder
+    rm -rf  ".commit"
+    mv  ".commit_new"  ".commit"
 }
 
 function  echoWithIndent() {
@@ -89,6 +126,14 @@ function  GetRelativePath() {
     echo  "${relativePath}"
 }
 
+function  AssertExist() {
+    local  path="$1"
+
+    if [ ! -e "${path}" ]; then
+        Error  "ERROR: Not found \"${path}\""
+    fi
+}
+
 function  AssertInstalled() {
     local  checkingCommand="$1"
     local  exists=${False}
@@ -99,7 +144,13 @@ function  AssertInstalled() {
     fi
 }
 
+function  Error() {
+    local  errorMessage="$1"
+    echo  "${errorMessage}"
+    exit  2
+}
+
 True=0
 False=1
 
-NewCommit
+Main  "$@"
