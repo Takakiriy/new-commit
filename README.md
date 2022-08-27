@@ -152,14 +152,19 @@ the `.commit_new` folder will be deleted immediately.
 
 ## push command
 
-    new-commit push __MainFolder__
+    new-commit push __RepositoryFolderPath__
 
-Push command copies files in `.commit_new` folder to `__MainFolder__`
+Push command copies files in `.commit_new` folder to `__RepositoryFolderPath__`
 and turn off the read-only attribute of the file.
 Also move files in the `.commit_new` folder into the `.commit` folder
 and delete `.commit_new` folder.
 
-- Replace `__MainFolder__` to the actual folder path
-- Files that there are in `__MainFolder__` but not in `.commit_new` folder
+Only if there is no difference between `.commit` and `.commit_new` folders
+(only if `.commit_new` folder is not created),
+copy files in `.commit` folder to the `__RepositoryFolderPath__` folder
+and turn off the read-only attribute of the file.
+
+- Replace `__RepositoryFolderPath__` to the actual folder path
+- Files that there are in `__RepositoryFolderPath__` but not in `.commit_new` folder
     is deleted
-- `.git` folder directly under `__MainFolder__` is not changed
+- `.git` folder directly under `__RepositoryFolderPath__` is not changed

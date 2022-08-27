@@ -1,0 +1,14 @@
+テスト:
+    Windows:
+        bash の場合:
+            VSCode >> Terminal >> Git bash
+            cd __Project__/test
+            ./test-new-commit
+        PowerShell の場合: |
+            VSCode >> Terminal >> PowerShell
+            cd __Project__/test
+            & "C:\Program Files\Git\bin\bash" test-new-commit
+    mac:
+        VSCode >> Terminal
+        cd __Project__/test
+        ./test-new-commit

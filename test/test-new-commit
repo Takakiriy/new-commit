@@ -1,5 +1,4 @@
-#// bash$ ./test-new-commit
-#// PS> bash test-new-commit
+#!/bin/bash
 NewCommitCommand="../bin/new-commit"
 
 function  AllTest() {
@@ -13,7 +12,9 @@ function  AllTest() {
     Test_Diff
     Test_Diff_InWorkingDirectory
     Test_Diff_InWorkingSubDirectory
-    Test_Push
+    Test_Push_1
+    Test_Push_NoCommitNewNoDiff
+    Test_Push_NoCommitError
     EndOfTest
 }
 
@@ -216,18 +217,11 @@ function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWor
     rm -rf "_testing"
 }
 
-function  Test_Push() {
+function  Test_Push_1() {
     rm -rf "_testing"
-    mkdir -p "_testing/build"
-    echo "x" > "_testing/build/out"
-    echo "x" > "_testing/example.c"
-    echo ".commit" > "_testing/.gitignore"
-    echo "build"  >> "_testing/.gitignore"
-    mkdir -p "_testing/_pushed/.git"
-    echo "git" > "_testing/_pushed/.git/files"
-    echo "old" > "_testing/_pushed/old_files"
+    MakePushTestFiles
     echo ""
-    echo "Test_Push"
+    echo "Test_Push_1"
 
     pushd "_testing" > /dev/null
 
@@ -269,6 +263,54 @@ function  Test_Push() {
     rm -rf "_testing"
 }
 
+function  Test_Push_NoCommitNewNoDiff() {
+    rm -rf "_testing"
+    MakePushTestFiles
+    echo ""
+    echo "Test_Push_NoCommitNewNoDiff"
+
+    pushd "_testing" > /dev/null
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"
+    AssertExist     ".commit"
+    AssertNotExist  ".commit_new"
+
+    echo  "$ new-commit push _pushed"
+    "../${NewCommitCommand}" push "_pushed"
+    popd > /dev/null
+
+    AssertExist        "_testing/_pushed/example.c"
+    AssertNotReadOnly  "_testing/_pushed/example.c"
+    rm -rf "_testing"
+}
+
+function  Test_Push_NoCommitError() {
+    #// Error test of no .commit_new but different contents
+    rm -rf "_testing"
+    MakePushTestFiles
+    echo ""
+    echo "Test_Push_NoCommitError"
+
+    pushd "_testing" > /dev/null
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"
+
+    rm  "example.c"
+    AssertExist     ".commit"
+    AssertNotExist  ".commit_new"
+
+    echo  "$ new-commit push _pushed"
+    "../${NewCommitCommand}" push "_pushed"
+    local  exitCode=$?
+    popd > /dev/null
+
+    if [ "${exitCode}" == "0" ]; then
+        Error  "Failed"
+    fi
+    AssertNotExist  "_testing/_pushed/example.c"
+    rm -rf "_testing"
+}
+
 function  Test_Assert() {
     rm -rf "_testing"
     mkdir -p "_testing/build"
@@ -299,6 +341,17 @@ function  Test_Assert() {
     EndErrorTest  'ERROR: Read only file "_testing/build/out"'
     chmod +w  "_testing/build/out"
     AssertNotReadOnly  "_testing/build/out"
+}
+
+function  MakePushTestFiles() {
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x" > "_testing/example.c"
+    echo ".commit" > "_testing/.gitignore"
+    echo "build"  >> "_testing/.gitignore"
+    mkdir -p "_testing/_pushed/.git"
+    echo "git" > "_testing/_pushed/.git/files"
+    echo "old" > "_testing/_pushed/old_files"
 }
 
 function  AssertExist() {

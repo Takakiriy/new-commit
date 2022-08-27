@@ -1,4 +1,4 @@
-#bash
+#!/bin/bash
 
 function  Main() {
     local  subCommand="$1"
@@ -71,26 +71,41 @@ function  NewCommit() {
 }
 
 function  Push() {
-    local  mainFolderPath="$2"
-    if [ "${mainFolderPath}" == "" ]; then
-        Error  "ERROR: No main folder  Command: new-commit push __MainFolder__"
+    local  repositoryFolderPath="$2"
+    if [ "${repositoryFolderPath}" == "" ]; then
+        Error  "ERROR: No main folder  Command: new-commit push __RepositoryFolderPath__"
     fi
-    AssertExist  "${mainFolderPath}"
+    AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
-    AssertExist  ".commit_new"
-    echo  "Copied files and disabled read only to \"${mainFolderPath}\" folder"
-    echo  "Moved \".commit_new\" to \".commit\" folder"
+    local  source=".commit_new"
+    if [ ! -e ".commit_new" ]; then
+        source=".commit"
+    fi
+
+    #// (.commit case) Check no update
+    if [ "${source}" == ".commit" ]; then
+        NewCommit > /dev/null
+        if [ -e ".commit_new" ]; then
+            rm -rf  ".commit_new"
+            Error  "ERROR: push command requires .commit_new folder. Run new-commit command."
+        fi
+    fi
 
     #// Copy files and disable read only
-    ls -a "${mainFolderPath}" | grep -v "\\.git\\|\\.\\|\\.." | xargs -I{} \
-        rm -rf  "${mainFolderPath}/{}"
-    rsync -a  ".commit_new/"  "${mainFolderPath}/"
-    find "${mainFolderPath}" -type f | xargs \
+    echo  "Copied files and disabled read only to \"${repositoryFolderPath}\" folder"
+    ls -a "${repositoryFolderPath}" | grep -v "^\\.git$\\|^\\.$\\|^\\..$" | xargs -I{} \
+        rm -rf  "${repositoryFolderPath}/{}"
+    mkdir -p  "${repositoryFolderPath}/"
+    cp -rapT  "${source}/"  "${repositoryFolderPath}/"
+    find "${repositoryFolderPath}" -type f | xargs \
         chmod +w
 
-    #// Update .commit folder
-    rm -rf  ".commit"
-    mv  ".commit_new"  ".commit"
+    #// (.commit_new case) Update .commit folder
+    if [ "${source}" == ".commit_new" ]; then
+        echo  "Moved \".commit_new\" to \".commit\" folder"
+        rm -rf  ".commit"
+        mv  ".commit_new"  ".commit"
+    fi
 }
 
 function  echoWithIndent() {

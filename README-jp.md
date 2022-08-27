@@ -151,14 +151,19 @@ flowchart TD;
 
 ## push コマンド
 
-    new-commit push __MainFolder__
+    new-commit push __RepositoryFolderPath__
 
-push コマンドを実行すると `.commit_new` フォルダーの内容を `__MainFolder__`
+push コマンドを実行すると `.commit_new` フォルダーの内容を `__RepositoryFolderPath__`
 にコピーして、ファイルの読み取り専用属性をオフにします。
 また、`.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
 `.commit_new` フォルダーを削除します。
 
-- `__MainFolder__` は実際のフォルダーのパスに置き換えてください
-- `__MainFolder__` にあったファイルのうち、`.commit_new` フォルダーに無いファイルは
+`.commit` フォルダーと `.commit_new` フォルダーに違いがない場合のみ
+（`.commit_new` フォルダーが作られない場合のみ）、
+`.commit` フォルダーの内容を `__RepositoryFolderPath__`
+にコピーして、ファイルの読み取り専用属性をオフにします。
+
+- `__RepositoryFolderPath__` は実際のフォルダーのパスに置き換えてください
+- `__RepositoryFolderPath__` にあったファイルのうち、`.commit_new` フォルダーに無いファイルは
     削除されます
-- `__MainFolder__` の直下の `.git` フォルダーは、変化しません
+- `__RepositoryFolderPath__` の直下の `.git` フォルダーは、変化しません
