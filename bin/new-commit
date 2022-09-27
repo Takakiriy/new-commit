@@ -3,18 +3,20 @@
 function  Main() {
     local  subCommand="$1"
     AssertInstalled  "git"
-    if [ "${subCommand}" == "" ]; then
+    if [ "${subCommand}" == ""  -o  "${subCommand}" == "status" ]; then
         NewCommit
     elif [ "${subCommand}" == "push" ]; then
         Push  "$@"
+    elif [ "${subCommand}" == "pull" ]; then
+        Pull  "$@"
     else
         Error  "ERROR: Unknown sub command \"${subCommand}\""
     fi
 }
 
 function  NewCommit() {
-    local  currentFolder="$(pwd)"
-    local  gitWorkingRootPath="$(GetGitWorkingRootPath)"
+    local  currentFolder="${PWD}"
+    local  gitWorkingRootPath="$( GetGitWorkingRootPath )"
     local  outputFolderName
     if [ ! -e ".commit" ]; then
         outputFolderName=".commit"
@@ -27,27 +29,48 @@ function  NewCommit() {
         rm -rf  "${outputFolderName}"
         git init  > /dev/null  2>&1
         git add "."  > /dev/null  2>&1
-        git commit  -m "temporary"  > /dev/null  2>&1
+        git commit  -m "new-commit) Created local working directory"  > /dev/null  2>&1
         mkdir  "${outputFolderName}"
 
         git checkout-index -a -f --prefix="${outputFolderName}/"
-        rm -rf  ".git"
     else
+        local  clean="${False}"
+        local  status="$(git status --short)"
+        if [ "${status}" == "" ]; then
+            clean="${True}"
+        fi
+
+        #// git checkout-index
         rm -rf  "${outputFolderName}"
         if [ "${currentFolder}" == "${gitWorkingRootPath}" ]; then
+            mkdir -p  "${outputFolderName}"
+            mv  ".git"  "${outputFolderName}/.commit_.git"
+            git init  > /dev/null
+            git add  "."  #// checkout new contents
 
             git checkout-index -a -f --prefix="${outputFolderName}/"
+            rm -rf  ".git"
+            mv  "${outputFolderName}/.commit_.git"  ".git"
         else
-            local  relativePath="$( GetRelativePath "${currentFolder}" "${gitWorkingRootPath}" )"
-            local  gitOutputPath="${gitWorkingRootPath}/.commit_new/${relativePath}"
+            local  gitIgnoreExists="${True}"
+            if [ ! -e ".gitignore" ]; then
+                gitIgnoreExists="${False}"
+                cat  "${gitWorkingRootPath}/.gitignore"  |  grep -v  "^/"  >  ".gitignore"
+            fi
+            git init  > /dev/null
+            git add  "."
 
-            git checkout-index -a -f --prefix=".commit_new/"
-            mv  "${gitOutputPath}"  "${outputFolderName}"
+            git checkout-index -a -f --prefix="${outputFolderName}/"
+            rm -rf  ".git"
+            if [ "${gitIgnoreExists}" == "${False}" ]; then
+                rm  ".gitignore"
+                rm  "${outputFolderName}/.gitignore"
+            fi
         fi
     fi
 
     #// Set read only
-    find "${outputFolderName}" -type f | xargs  chmod -w
+    find "${outputFolderName}" -type f  |  xargs  -I {}  chmod -w "{}"
 
     #// Show different file names
     if [ "${outputFolderName}" == ".commit" ]; then
@@ -68,10 +91,18 @@ function  NewCommit() {
             echoWithIndent  "${diff_output}"  "    "
         fi
     fi
+
+    #// Show conflict file names
+    local  conflictOutput=$( grep -rn --exclude-dir ".commit_new"  "^<<<<<<<"  "."  |  sed  "s/\\(:[0-9][0-9]*:\\)\\([^ ]\\)/\\1 \\2/" )
+    if [ "${conflictOutput}" != "" ]; then
+        echo  "CONFLICT:"
+        echoWithIndent  "${conflictOutput}"  "    "
+    fi
 }
 
 function  Push() {
     local  repositoryFolderPath="$2"
+    repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
     if [ "${repositoryFolderPath}" == "" ]; then
         Error  "ERROR: No main folder  Command: new-commit push __RepositoryFolderPath__"
     fi
@@ -87,24 +118,179 @@ function  Push() {
         NewCommit > /dev/null
         if [ -e ".commit_new" ]; then
             rm -rf  ".commit_new"
-            Error  "ERROR: push command requires .commit_new folder. Run new-commit command."
+            Error  "ERROR: push command requires .commit_new folder, if update file exists. Run new-commit command."
         fi
     fi
 
     #// Copy files and disable read only
     echo  "Copied files and disabled read only to \"${repositoryFolderPath}\" folder"
-    ls -a "${repositoryFolderPath}" | grep -v "^\\.git$\\|^\\.$\\|^\\..$" | xargs -I{} \
+    ls -a "${repositoryFolderPath}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
         rm -rf  "${repositoryFolderPath}/{}"
-    mkdir -p  "${repositoryFolderPath}/"
-    cp -rapT  "${source}/"  "${repositoryFolderPath}/"
-    find "${repositoryFolderPath}" -type f | xargs \
-        chmod +w
+    CopyFolder  "${source}"  "${repositoryFolderPath}"  "--exclude=./.git"
+    find "${repositoryFolderPath}" -type f  |  xargs -I {} \
+        chmod +w "{}"
 
     #// (.commit_new case) Update .commit folder
     if [ "${source}" == ".commit_new" ]; then
         echo  "Moved \".commit_new\" to \".commit\" folder"
         rm -rf  ".commit"
         mv  ".commit_new"  ".commit"
+    fi
+    rm -rf ".commit_before_pull"
+    rm -rf ".commit_repository"
+}
+
+function  Pull() {
+    local  repositoryFolderPath="$2"
+    repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
+    if [ "${repositoryFolderPath}" == "" ]; then
+        Error  "ERROR: No main folder  Command: new-commit pull __RepositoryFolderPath__"
+    fi
+    AssertExist  "${repositoryFolderPath}"
+    AssertExist  ".commit"
+    local  source=".commit_new"
+    if [ ! -e ".commit_new" ]; then
+        source=".commit"
+    fi
+
+    #// Create ".commit_repository" folder
+    #// "commit_repository" is a copy of the current repository's folder
+    #// "repositoryFolderPath", minus the files covered by ".gitignore".
+        AssertNotExist  "${repositoryFolderPath}/.commit_new"
+        local  thereIsRepositoryCommit=${False}
+        if [ -e "${repositoryFolderPath}/.commit" ]; then
+            thereIsRepositoryCommit=${True}
+        fi
+
+        #// (.commit case) Check no update
+        if [ "${source}" == ".commit" ]; then
+            NewCommit > /dev/null
+            if [ -e ".commit_new" ]; then
+                rm -rf  ".commit_repository"
+                rm -rf  ".commit_new"
+                Error  "ERROR: pull command requires .commit_new folder, if working folder was changed. Run new-commit command."
+            fi
+        fi
+
+        #// Create ".commit_repository" folder
+        rm -rf  ".commit_repository"
+        pushd  "${repositoryFolderPath}" > /dev/null
+
+        NewCommit > /dev/null
+        popd > /dev/null
+        if [ -e "${repositoryFolderPath}/.commit_new" ]; then
+            mv  "${repositoryFolderPath}/.commit_new"  ".commit_repository"
+        else
+            if [ "${thereIsRepositoryCommit}" == "${True}" ]; then
+                CopyFolder  "${repositoryFolderPath}/.commit"  ".commit_repository"
+            else
+                mv  "${repositoryFolderPath}/.commit"  ".commit_repository"
+            fi
+        fi
+        echo  "Copied a repository folder to \".commit_repository\" folder"
+
+    #// Create ".commit_before_pull" folder
+    if [ "${source}" == ".commit_new" ]; then
+        rm -rf  ".commit_before_pull"
+        mv  ".commit_new"  ".commit_before_pull"
+        echo  "Renamed \".commit_new\" folder to \".commit_before_pull\" folder"
+    else
+        rm -rf    ".commit_before_pull"
+        mkdir -p  ".commit_before_pull"
+        ls -a ".commit" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
+            cp -Rap  ".commit/{}"  ".commit_before_pull"
+        rm -rf  ".commit_before_pull/.git"
+        echo  "Copied \".commit\" folder to \".commit_before_pull\" folder"
+    fi
+
+    #// Add to stage in parent .git, if the parent .git includes current folder. 
+    if [ ! -e ".git" ]; then
+        git add  "."  > /dev/null
+    fi
+
+    #// Make a ".git" folder that has "commit_reposiroty" branch
+    echo  "Pull from \".commit_repository\" folder"
+    local  currentBranch=$( git rev-parse --abbrev-ref HEAD )
+
+    #// Check ".commit" folder
+    pushd  ".commit" > /dev/null
+        if [ -e "../.git" ]; then
+            mv  "../.git"  "."
+            local  clean="${False}"
+            if [ "$(git status --short)" == "" ]; then
+                clean="${True}"
+            fi
+            if [ "${clean}" == "${False}" ]; then
+                mv  ".git"  ".."
+                popd  > /dev/null
+                Error  "ERROR .commit folder is not git clean status"
+            fi
+
+            mkdir -p  "../.commit_repository/.git"
+            ls -a ".git" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
+                cp -Rap  ".git/{}"  "../.commit_repository/.git"
+        else
+            git init  > /dev/null  ||  Error
+            git add  "."
+            git commit  -m "new-commit pull) Created a common commit." > /dev/null  #// Ignore this command errors
+            currentBranch=$( git rev-parse --abbrev-ref HEAD )
+            mkdir -p  "../.commit_repository"
+            mv  ".git"  "../.commit_repository"            
+        fi
+
+    #// Make the repository branch
+        cd  "../.commit_repository"
+        git checkout -b "__new-commit_commit_repository" > /dev/null 2>&1  ||  Error
+        git add "." > /dev/null
+        git commit  -m "new-commit pull) commit_repository" > /dev/null  #// Ignore this command errors
+        local  oldCommitID=$( git rev-parse --short "${currentBranch}" )
+        local  othersCommitID=$( git rev-parse --short __new-commit_commit_repository )
+        mkdir -p "../.commit_temporary"
+        mv  ".git"  "../.commit_temporary"
+
+    #// Change current branch
+        cd  "../.commit_temporary"
+        git checkout "${currentBranch}" > /dev/null 2>&1  ||  Error
+        mv  ".git"  ".."
+        cd  ".."
+        rm -rf  ".commit_temporary"
+    popd > /dev/null
+
+    #// Merge
+    #// source: ".commit_repository" folderS
+    #// destination: current folder
+    if [ "${source}" == ".commit_new" ]; then
+        git add "."
+        git commit  -m "new-commit pull) commit_before_pull" > /dev/null
+    fi
+    if [ "${othersCommitID}" != "${oldCommitID}" ]; then
+
+        git merge  "__new-commit_commit_repository" --no-edit  > /dev/null
+    fi
+    rm -rf  ".git"
+
+    #// Restore .git folder and stage before pull files
+    if [ "${othersCommitID}" != "${oldCommitID}" ]; then
+        if [ -e ".commit/.git" ]; then
+            cd  ".commit_before_pull"
+            mv  "../.commit/.git"  "."
+            git add  "."
+            cd  ".."
+            mv  ".commit_before_pull/.git"  "."
+        fi
+
+        #// Diff
+        local  diff_output="$( diff -qr  ".commit"  ".commit_repository" )"
+        echoWithIndent  "${diff_output}"  "    "
+    else
+        echo  'Renamed \".commit_before_pull\" folder to \".commit_new\" folder'
+        echo  'Deleted \".commit_repository\" folder'
+        echo  'No change'
+        if [ -e ".commit/.git" ]; then
+            mv  ".commit/.git"  "."
+        fi
+        mv  ".commit_before_pull"  ".commit_new"
+        rm -rf  ".commit_repository"
     fi
 }
 
@@ -120,14 +306,14 @@ function  echoWithIndent() {
 }
 
 function  GetGitWorkingRootPath() {
-    local  path="$(pwd)"
+    local  path="${PWD}"
     while [ "${path}" != "" ]; do
 
         if [ -e "${path}/.git" ]; then
             echo  "${path}"
             return
         fi
-        path="${path/*}" 
+        path="${path%/*}" 
     done
 
     echo  ""
@@ -141,11 +327,52 @@ function  GetRelativePath() {
     echo  "${relativePath}"
 }
 
+function  CopyFolder() {
+    local  source="$1"
+    local  destination="$2"
+    local  ignoreDotGit="$3"  #// ${True}, ${False}(default)
+    local  excludeOption="--exclude=./.git"
+    source="$( CutLastOf  "${source}"  "/" )"
+    destination="$( CutLastOf  "${destination}"  "/" )"
+    if [ "${ignoreDotGit}" != ""  -a  "${ignoreDotGit}" != "${excludeOption}" ]; then
+        Error  "Bad option: ${ignoreDotGit}"
+        return  "${False}"
+    fi
+
+    mkdir -p  "${destination}/"
+    if [ "${ignoreDotGit}" == "${excludeOption}" ]; then
+        ls -a "${source}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
+            cp -Rap  "${source}/{}"  "${destination}/"
+    else
+        ls -a "${source}" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
+            cp -Rap  "${source}/{}"  "${destination}/"
+    fi
+}
+
+function  CutLastOf() {
+    local  wholeString="$1"
+    local  lastExpected="$2"
+
+    if [ "${wholeString:${#wholeString}-${#lastExpected}:${#lastExpected}}" == "${lastExpected}" ]; then
+        echo  "${wholeString:0:${#wholeString}-${#lastExpected}}"
+    else
+        echo  "${wholeString}"
+    fi
+}
+
 function  AssertExist() {
     local  path="$1"
 
     if [ ! -e "${path}" ]; then
         Error  "ERROR: Not found \"${path}\""
+    fi
+}
+
+function  AssertNotExist() {
+    local  path="$1"
+
+    if [ -e "${path}" ]; then
+        Error  "ERROR: Found \"${path}\""
     fi
 }
 

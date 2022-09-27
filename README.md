@@ -9,14 +9,14 @@ or in subfolders of the Git working directory.
 
 ```mermaid
 graph LR;
-    s[ A commit in a reposiroty ] -- git diff --> d[ A folder outside of Git working directory ];
+    s[ A commit in a reposiroty ] -- git status or git diff --> d[ A folder outside of Git working directory ];
 ```
 
 or
 
 ```mermaid
 graph LR;
-    s[ A folder in a repository ] -- git diff --> d[ Another folder in the same reposiroty ];
+    s[ A folder in a repository ] -- git status or git diff --> d[ Another folder in the same reposiroty ];
 ```
 
 
@@ -78,12 +78,12 @@ takes no parameters.
 The movement changes depending on the situation.
 
 The `.gitignore` file should write
-to the `.commit` folders and `.commit_new` folders.
+to the `.commit` and `.commit_*`.
 
 Sample `.gitignore`:
 
     .commit
-    .commit_new
+    .commit_*
 
 ### Case of no `.commit` folder
 
@@ -103,7 +103,7 @@ This `.commit` folder is the comparison target of `git status` and `git diff`.
 
 Sample commands:
 
-    $ cd __WorkFolder__
+    $ cd __WorkingDirectory__
     $ new-commit
     Created new ".commit" folder.
     This will be treated as base commit.
@@ -126,7 +126,7 @@ This behavior corresponds to `git status` and `git diff`.
 
 Sample commands:
 
-    $ cd __WorkFolder__
+    $ cd __WorkingDirectory__
     $ new-commit
     Created new ".commit_new" folder.
     Changes for .commit:
@@ -144,14 +144,88 @@ If the contents of the `.commit` folder and the contents of
 the `.commit_new` folder are the same,
 the `.commit_new` folder will be deleted immediately.
 
-    $ cd __Project__
+    $ cd __WorkingDirectory__
     $ new-commit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
 
 
+## pull command
+
+```mermaid
+graph RL;
+    r[ A folder in a repository ] -- git pull or git merge --> c[ Current folder ];
+```
+
+The pull command merges the repository folder contents into the current folder.
+
+    cd __WorkingDirectory__
+    new-commit pull __RepositoryFolderPath__
+
+The pull command merges the contents of
+`__RepositoryFolderPath__` folder into the current folder.
+
+    $ cd __WorkingDirectory__
+    $ new-commit pull _repository
+    Created ".commit_repository" folder
+    Renamed ".commit_new" folder to ".commit_before_pull" folder
+    Pull from ".commit_repository" folder
+    Auto-merging example.txt
+    Merge made by the 'ort' strategy.
+    example.txt | 2 +-
+    1 file changed, 1 insertion(+), 1 deletion(-)
+        Files .commit/example.txt and .commit_repository/example.txt differ
+
+`.commit_before_pull` folder and `.commit_repository` folder are created,
+when the contents of the latest repository folder are changed from
+the contents of `.commit` folder.
+
+- `.commit_before_pull` folder: Contents of current folder before pull command
+- `.commit_repository` folder: Copy of the latest repository folder
+
+The push command will also delete `.commit_before_pull` folder and `.commit_repository` folder in addition to the normal push command behavior.
+
+The pull command can have conflicts.
+
+    $ cd __WorkingDirectory__
+    $ new-commit pull _repository
+    Created ".commit_repository" folder
+    Renamed ".commit_new" folder to ".commit_before_pull" folder
+    Pull from ".commit_repository" folder
+    Auto-merging example.txt
+    CONFLICT (content): Merge conflict in example.txt
+    Automatic merge failed; fix conflicts and then commit the result.
+        Files .commit/example.txt and .commit_repository/example.txt differ
+
+The new-commit command will show CONFLICT(s) warning
+until conflicts are resolved.
+
+    $ cd __WorkingDirectory__
+    $ new-commit
+    Created new ".commit_new" folder.
+    Changes for .commit:
+        Files .commit/example.txt and .commit_new/example.txt differ
+    CONFLICT:
+        ./example.txt:3: <<<<<<< HEAD
+
+If conflicts were resolved, use the push command.
+
+
 ## push command
 
+```mermaid
+graph LR;
+    c[ Current folder ] -- git push --> r[ A folder in a repository ];
+```
+
+The push command will overwrite the contents of current folder
+into the repository folder.
+If **the push command is not executed immediately after the pull command**,
+note that any updates to the repository folder
+by editing other than the current folder
+will be overwritten and lost by push command.
+
+    cd __WorkingDirectory__
     new-commit push __RepositoryFolderPath__
 
 Push command copies files in `.commit_new` folder to `__RepositoryFolderPath__`

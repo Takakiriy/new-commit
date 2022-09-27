@@ -9,14 +9,14 @@ Git の ワーキング ディレクトリ のサブフォルダーでも使え�
 
 ```mermaid
 graph LR;
-    s[ リポジトリの中のコミット ] -- git diff --> d[ Git の ワーキング ディレクトリ の外にあるフォルダー];
+    s[ リポジトリの中のコミット ] -- git status or git diff --> d[ Git の ワーキング ディレクトリ の外にあるフォルダー];
 ```
 
 または
 
 ```mermaid
 graph LR;
-    s[ リポジトリの中のフォルダー ] -- git diff --> d[ 同じリポジトリの中の別のフォルダー ];
+    s[ リポジトリの中のフォルダー ] -- git status or git diff --> d[ 同じリポジトリの中の別のフォルダー ];
 ```
 
 
@@ -78,13 +78,13 @@ flowchart TD;
 `new-commit` コマンドは、パラメーターを指定しません。
 状況に応じて動きが変わります。
 
-なお、`.gitignore` ファイルには、`.commit` フォルダーや
-`.commit_new` フォルダーを指定するべきです。
+なお、`.gitignore` ファイルには、`.commit` や
+`.commit_*` を指定するべきです。
 
 `.gitignore` のサンプル:
 
     .commit
-    .commit_new
+    .commit_*
 
 ### `.commit` フォルダーが無い場合
 
@@ -103,7 +103,7 @@ flowchart TD;
 
 コマンドの例:
 
-    $ cd __WorkFolder__
+    $ cd __WorkingDirectory__
     $ new-commit
     Created new ".commit" folder.
     This will be treated as base commit.
@@ -126,7 +126,7 @@ flowchart TD;
 
 コマンドの例:
 
-    $ cd __WorkFolder__
+    $ cd __WorkingDirectory__
     $ new-commit
     Created new ".commit_new" folder.
     Changes for .commit:
@@ -143,14 +143,87 @@ flowchart TD;
 もし、`.commit` フォルダーの内容と `.commit_new` フォルダーの内容が
 同じ場合、すぐに `.commit_new` フォルダーが削除されます。
 
-    $ cd __Project__
+    $ cd __WorkingDirectory__
     $ new-commit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
 
 
+## pull コマンド
+
+```mermaid
+graph RL;
+    r[ リポジトリの中のフォルダー ] -- git pull or git merge --> c[ カレント フォルダー ];
+```
+
+pull コマンドは、リポジトリ フォルダー の内容を カレント フォルダー に入力するマージをします。
+
+    cd __WorkingDirectory__
+    new-commit pull __RepositoryFolderPath__
+
+pull コマンドを実行すると `__RepositoryFolderPath__` フォルダーの内容を 
+カレント フォルダー にマージします。
+
+    $ cd __WorkingDirectory__
+    $ new-commit pull _repository
+    Created ".commit_repository" folder
+    Renamed ".commit_new" folder to ".commit_before_pull" folder
+    Pull from ".commit_repository" folder
+    Auto-merging example.txt
+    Merge made by the 'ort' strategy.
+    example.txt | 2 +-
+    1 file changed, 1 insertion(+), 1 deletion(-)
+        Files .commit/example.txt and .commit_repository/example.txt differ
+
+最新の リポジトリ フォルダー の内容が `.commit` フォルダーの内容から変わったときは、
+`.commit_before_pull` フォルダーと `.commit_repository` フォルダーが作られます。
+
+- .commit_before_pull フォルダー: pull コマンドを実行する前の カレント フォルダー の内容
+- .commit_repository フォルダー: 最新の リポジトリ フォルダー のコピー
+
+push コマンドを使うと、通常の push コマンドの動作の他に、
+`.commit_before_pull` フォルダーと
+`.commit_repository` フォルダーの削除も行われます。
+
+pull コマンドは、コンフリクトが起きることがあります。
+
+    $ cd __WorkingDirectory__
+    $ new-commit pull _repository
+    Created ".commit_repository" folder
+    Renamed ".commit_new" folder to ".commit_before_pull" folder
+    Pull from ".commit_repository" folder
+    Auto-merging example.txt
+    CONFLICT (content): Merge conflict in example.txt
+    Automatic merge failed; fix conflicts and then commit the result.
+        Files .commit/example.txt and .commit_repository/example.txt differ
+
+コンフリクトが解決するまで、new-commit コマンドは CONFLICT があることを表示します。
+
+    $ cd __WorkingDirectory__
+    $ new-commit
+    Created new ".commit_new" folder.
+    Changes for .commit:
+        Files .commit/example.txt and .commit_new/example.txt differ
+    CONFLICT:
+        ./example.txt:3: <<<<<<< HEAD
+
+解決したら push コマンドを使います。
+
+
 ## push コマンド
 
+```mermaid
+graph LR;
+    c[ カレント フォルダー ] -- git push --> r[ リポジトリの中のフォルダー ];
+```
+
+push コマンドは、カレント フォルダー の内容を リポジトリ フォルダー に上書きコピーします。
+もし、**push コマンドを実行するタイミングが pull コマンドの実行直後ではない場合、**
+カレント フォルダー 以外の編集によって
+リポジトリ フォルダー が更新された内容が、
+push コマンドによって上書きされて無くなってしまうことに注意してください。
+
+    cd __WorkingDirectory__
     new-commit push __RepositoryFolderPath__
 
 push コマンドを実行すると `.commit_new` フォルダーの内容を `__RepositoryFolderPath__`

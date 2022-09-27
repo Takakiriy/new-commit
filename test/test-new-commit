@@ -1,51 +1,67 @@
 #!/bin/bash
+if [ "${_Dbg_DEBUGGER_LEVEL}" != "" ]; then
+    cd  "test"
+fi
 NewCommitCommand="../bin/new-commit"
 
 function  AllTest() {
     Test_Error
     Test_Assert
+    Test_CutLastOf
+    Test_CopyFolder
 
     Test_1
     Test_InWorkingDirectory
     Test_InWorkingSubDirectory
     Test_NoUpdate
+    Test_NoModifiedConflict
     Test_Diff
     Test_Diff_InWorkingDirectory
     Test_Diff_InWorkingSubDirectory
     Test_Push_1
     Test_Push_NoCommitNewNoDiff
     Test_Push_NoCommitError
+    Test_Pull_1
+    Test_Pull_NoInput
+    Test_Pull_Merge
+    Test_Pull_Conflict
+    Test_Pull_Push_InWorkingSubDirectory
     EndOfTest
 }
 
 function  Test_1() {
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
-    echo "x" > "_testing/example.c"
+    echo "x" > "_testing/example.txt"
     echo "build" > "_testing/.gitignore"
     echo ""
     echo "Test_1"
 
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
     popd > /dev/null
 
-    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/example.txt"
     AssertExist     "_testing/.commit/.gitignore"
     AssertNotExist  "_testing/.commit/build"
     AssertNotExist  "_testing/.commit/build/out"
-    AssertReadOnly  "_testing/.commit/example.c"
+    if [ "${InGitWorking}" == "${False}" ]; then
+        AssertExist     "_testing/.git"
+    fi
+    AssertReadOnly  "_testing/.commit/example.txt"
     AssertReadOnly  "_testing/.commit/.gitignore"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
 }
 
 function  Test_InWorkingDirectory() {
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
-    echo "x" > "_testing/example.c"
-    echo "build" > "_testing/.gitignore"
+    echo "x" > "_testing/example.txt"
+    echo "build"      > "_testing/.gitignore"
+    echo ".commit"   >> "_testing/.gitignore"
+    echo ".commit_*" >> "_testing/.gitignore"
 
     pushd "_testing" > /dev/null
     git init  > /dev/null  2>&1
@@ -54,24 +70,24 @@ function  Test_InWorkingDirectory() {
     echo  ""
     echo  "Test_InWorkingDirectory"
 
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
     AssertExist  ".git"
     popd > /dev/null
 
-    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/example.txt"
     AssertExist     "_testing/.commit/.gitignore"
     AssertNotExist  "_testing/.commit/build"
     AssertNotExist  "_testing/.commit/build/out"
-    AssertReadOnly  "_testing/.commit/example.c"
+    AssertReadOnly  "_testing/.commit/example.txt"
     AssertReadOnly  "_testing/.commit/.gitignore"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
 }
 
 function  Test_InWorkingSubDirectory() {
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/sub/build"
     echo "x" > "_testing/sub/build/out"
-    echo "x" > "_testing/sub/example.c"
+    echo "x" > "_testing/sub/example.txt"
     echo "build" > "_testing/sub/.gitignore"
 
     pushd "_testing" > /dev/null
@@ -82,84 +98,118 @@ function  Test_InWorkingSubDirectory() {
     echo  ""
     echo  "Test_InWorkingSubDirectory"
 
-    "../../${NewCommitCommand}"
+    "../../${NewCommitCommand}"  ||  TestError
     cd  ".."
     AssertExist  ".git"
     popd > /dev/null
 
-    AssertExist     "_testing/sub/.commit/example.c"
+    AssertExist     "_testing/sub/.commit/example.txt"
     AssertExist     "_testing/sub/.commit/.gitignore"
     AssertNotExist  "_testing/sub/.commit/build"
     AssertNotExist  "_testing/sub/.commit/build/out"
-    AssertReadOnly  "_testing/sub/.commit/example.c"
+    AssertReadOnly  "_testing/sub/.commit/example.txt"
     AssertReadOnly  "_testing/sub/.commit/.gitignore"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
 }
 
 function  Test_NoUpdate() {  #// Base test is "Test_1"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
-    echo "x"       > "_testing/example.c"
+    echo "x"       > "_testing/example.txt"
     echo "x"       > "_testing/build/out"
     echo ".commit" > "_testing/.gitignore"
     echo "build"  >> "_testing/.gitignore"
-    echo "x"       > "_testing/.commit/example.c"
+    echo "x"       > "_testing/.commit/example.txt"
     echo ".commit" > "_testing/.commit/.gitignore"
     echo "build"  >> "_testing/.commit/.gitignore"
     echo ""
     echo "Test_NoUpdate"
 
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
     popd > /dev/null
 
     AssertNotExist  "_testing/.commit_new/"
 
-    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/example.txt"
     AssertExist     "_testing/.commit/.gitignore"
     AssertNotExist  "_testing/.commit/.commit"
     AssertNotExist  "_testing/.commit/build"
     AssertNotExist  "_testing/.commit/build/out"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
+}
+
+function  Test_NoModifiedConflict() {  #// Base test is "Test_1"
+    DeleteFolder  "_testing"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x"                   > "_testing/example.txt"
+    echo "<<<<<<< HEAD"       >> "_testing/example.txt"
+    echo "    my edit"        >> "_testing/example.txt"
+    echo "======="            >> "_testing/example.txt"
+    echo "    others edit"    >> "_testing/example.txt"
+    echo ">>>>>>> __Others__" >> "_testing/example.txt"
+    echo "build"      > "_testing/.gitignore"
+    echo ".commit"   >> "_testing/.gitignore"
+    echo ".commit_*" >> "_testing/.gitignore"
+    echo ""
+    echo "Test_NoModifiedConflict"
+
+    AssertNotExist  "_testing/.commit"
+
+    echo  "$ new-commit"
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}"  ||  TestError
+    popd > /dev/null
+    AssertExist  "_testing/.commit"
+
+    echo  "$ new-commit"
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}"  ||  TestError  #// 2nd execute
+    popd > /dev/null
+    AssertExist     "_testing/.commit"
+    AssertNotExist  "_testing/.commit_new"
+
+    DeleteFolder  "_testing"
 }
 
 function  Test_Diff() {  #// Base test is "Test_1"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
-    echo "x"       > "_testing/example.c"
+    echo "x"       > "_testing/example.txt"
     echo "x"       > "_testing/build/out"
     echo ".commit" > "_testing/.gitignore"
     echo "build"  >> "_testing/.gitignore"
-    echo "2"       > "_testing/.commit/example.c"
+    echo "2"       > "_testing/.commit/example.txt"
     echo ""
     echo "Test_Diff"
 
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
     popd > /dev/null
 
-    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/example.txt"
     AssertNotExist  "_testing/.commit/.gitignore"
 
-    AssertExist     "_testing/.commit_new/example.c"
+    AssertExist     "_testing/.commit_new/example.txt"
     AssertExist     "_testing/.commit_new/.gitignore"
     AssertNotExist  "_testing/.commit_new/.commit"
     AssertNotExist  "_testing/.commit_new/build"
     AssertNotExist  "_testing/.commit_new/build/out"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
 }
 
 function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Test_InWorkingDirectory"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
-    echo "x"       > "_testing/example.c"
+    echo "x"       > "_testing/example.txt"
     echo "x"       > "_testing/build/out"
     echo ".commit" > "_testing/.gitignore"
     echo "build"  >> "_testing/.gitignore"
-    echo "2"       > "_testing/.commit/example.c"
+    echo "2"       > "_testing/.commit/example.txt"
 
     pushd "_testing" > /dev/null
     git init  > /dev/null  2>&1
@@ -168,30 +218,30 @@ function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Te
     echo  ""
     echo  "Test_Diff_InWorkingDirectory"
 
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
     AssertExist  ".git"
     popd > /dev/null
 
-    AssertExist     "_testing/.commit/example.c"
+    AssertExist     "_testing/.commit/example.txt"
     AssertNotExist  "_testing/.commit/.gitignore"
 
-    AssertExist     "_testing/.commit_new/example.c"
+    AssertExist     "_testing/.commit_new/example.txt"
     AssertExist     "_testing/.commit_new/.gitignore"
     AssertNotExist  "_testing/.commit_new/.commit"
     AssertNotExist  "_testing/.commit_new/build"
     AssertNotExist  "_testing/.commit_new/build/out"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
 }
 
 function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWorkingDirectory" and "Test_InWorkingSubDirectory"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/sub/build"
     mkdir -p "_testing/sub/.commit"
-    echo "x"       > "_testing/sub/example.c"
+    echo "x"       > "_testing/sub/example.txt"
     echo "x"       > "_testing/sub/build/out"
     echo ".commit" > "_testing/sub/.gitignore"
     echo "build"  >> "_testing/sub/.gitignore"
-    echo "2"       > "_testing/sub/.commit/example.c"
+    echo "2"       > "_testing/sub/.commit/example.txt"
 
     pushd "_testing" > /dev/null
     git init  > /dev/null  2>&1
@@ -201,120 +251,560 @@ function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWor
     echo  ""
     echo  "Test_Diff_InWorkingSubDirectory"
 
-    "../../${NewCommitCommand}"
+    "../../${NewCommitCommand}"  ||  TestError
     cd  ".."
     AssertExist  ".git"
     popd > /dev/null
 
-    AssertExist     "_testing/sub/.commit/example.c"
+    AssertExist     "_testing/sub/.commit/example.txt"
     AssertNotExist  "_testing/sub/.commit/.gitignore"
 
-    AssertExist     "_testing/sub/.commit_new/example.c"
+    AssertExist     "_testing/sub/.commit_new/example.txt"
     AssertExist     "_testing/sub/.commit_new/.gitignore"
     AssertNotExist  "_testing/sub/.commit_new/.commit"
     AssertNotExist  "_testing/sub/.commit_new/build"
     AssertNotExist  "_testing/sub/.commit_new/build/out"
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
 }
 
 function  Test_Push_1() {
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     MakePushTestFiles
+    echo "del" > "_testing/will_delete.txt"
     echo ""
     echo "Test_Push_1"
 
     pushd "_testing" > /dev/null
 
     echo  "$ new-commit"
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
 
-    echo "after" > "example.c"
-    echo "new" > "new.c"
+    echo "after" > "example.txt"
+    echo "new" > "new X.txt"
+    rm  "will_delete.txt"
 
     echo  "$ new-commit"
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
 
-    echo  "$ new-commit push _pushed"
-    "../${NewCommitCommand}" push "_pushed"
+    echo  "$ new-commit push _repository"
+    "../${NewCommitCommand}" push "_repository"  ||  TestError
 
     popd > /dev/null
 
     AssertNotExist  "_testing/.commit_new"
 
-    AssertExist     "_testing/.commit/example.c"
-    AssertExist     "_testing/.commit/new.c"
+    AssertExist     "_testing/.commit/example.txt"
+    AssertExist     "_testing/.commit/new X.txt"
     AssertExist     "_testing/.commit/.gitignore"
     AssertNotExist  "_testing/.commit/build"
     AssertNotExist  "_testing/.commit/build/out"
-    AssertReadOnly  "_testing/.commit/example.c"
-    AssertReadOnly  "_testing/.commit/new.c"
+    AssertReadOnly  "_testing/.commit/example.txt"
+    AssertReadOnly  "_testing/.commit/new X.txt"
     AssertReadOnly  "_testing/.commit/.gitignore"
+    AssertContents  "_testing/new X.txt"  'new\n'
 
-    AssertExist        "_testing/_pushed/example.c"
-    AssertExist        "_testing/_pushed/new.c"
-    AssertExist        "_testing/_pushed/.gitignore"
-    AssertExist        "_testing/_pushed/.git"
-    AssertNotExist     "_testing/_pushed/old_files"
-    AssertNotExist     "_testing/_pushed/build"
-    AssertNotExist     "_testing/_pushed/build/out"
-    AssertNotReadOnly  "_testing/_pushed/example.c"
-    AssertNotReadOnly  "_testing/_pushed/new.c"
-    AssertNotReadOnly  "_testing/_pushed/.gitignore"
-    rm -rf "_testing"
+    AssertExist        "_testing/_repository/example.txt"
+    AssertExist        "_testing/_repository/new X.txt"
+    AssertExist        "_testing/_repository/.gitignore"
+    AssertExist        "_testing/_repository/.git"
+    AssertNotExist     "_testing/_repository/old_files"
+    AssertNotExist     "_testing/_repository/build"
+    AssertNotExist     "_testing/_repository/build/out"
+    AssertNotReadOnly  "_testing/_repository/example.txt"
+    AssertNotReadOnly  "_testing/_repository/new X.txt"
+    AssertNotReadOnly  "_testing/_repository/.gitignore"
+    DeleteFolder  "_testing"
 }
 
 function  Test_Push_NoCommitNewNoDiff() {
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     MakePushTestFiles
     echo ""
     echo "Test_Push_NoCommitNewNoDiff"
 
     pushd "_testing" > /dev/null
     echo  "$ new-commit"
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
     AssertExist     ".commit"
     AssertNotExist  ".commit_new"
 
-    echo  "$ new-commit push _pushed"
-    "../${NewCommitCommand}" push "_pushed"
+    echo  "$ new-commit push _repository"
+    "../${NewCommitCommand}" push "_repository"  ||  TestError
     popd > /dev/null
 
-    AssertExist        "_testing/_pushed/example.c"
-    AssertNotReadOnly  "_testing/_pushed/example.c"
-    rm -rf "_testing"
+    AssertExist        "_testing/_repository/example.txt"
+    AssertNotReadOnly  "_testing/_repository/example.txt"
+    DeleteFolder  "_testing"
 }
 
 function  Test_Push_NoCommitError() {
     #// Error test of no .commit_new but different contents
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     MakePushTestFiles
     echo ""
     echo "Test_Push_NoCommitError"
 
     pushd "_testing" > /dev/null
     echo  "$ new-commit"
-    "../${NewCommitCommand}"
+    "../${NewCommitCommand}"  ||  TestError
 
-    rm  "example.c"
+    rm  "example.txt"
     AssertExist     ".commit"
     AssertNotExist  ".commit_new"
 
-    echo  "$ new-commit push _pushed"
-    "../${NewCommitCommand}" push "_pushed"
+    echo  "$ new-commit push _repository"
+    "../${NewCommitCommand}" push "_repository"
     local  exitCode=$?
     popd > /dev/null
 
     if [ "${exitCode}" == "0" ]; then
-        Error  "Failed"
+        TestError  "Failed"
     fi
-    AssertNotExist  "_testing/_pushed/example.c"
-    rm -rf "_testing"
+    AssertNotExist  "_testing/_repository/example.txt"
+    DeleteFolder  "_testing"
+}
+
+function  Test_Pull_1() {
+    echo ""
+    echo "Test_Pull_1"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+
+    echo "x" > "_testing/build/out"
+    echo "a"  > "_testing/example.txt"
+    echo "b" >> "_testing/example.txt"
+    echo "c" >> "_testing/example.txt"
+
+    mkdir -p "_testing/_repository"
+    cp  "_testing/.gitignore"  "_testing/_repository/.gitignore"
+    echo "a"      > "_testing/_repository/example.txt"
+    echo "b"     >> "_testing/_repository/example.txt"
+    echo "c new" >> "_testing/_repository/example.txt"
+
+    #// pull command
+    pushd "_testing" > /dev/null
+
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+
+    echo  "$ new-commit pull _repository"
+    "../${NewCommitCommand}" pull "_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/example.txt"  'a\nb\nc new\n'
+    AssertExist     "_testing/.commit_before_pull"
+    AssertExist     "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_new"
+    AssertExist     "_testing/.commit"
+
+    #// push command
+    pushd "_testing" > /dev/null
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+    popd > /dev/null
+
+    AssertExist  "_testing/.commit_new"
+
+    pushd "_testing" > /dev/null
+    echo  "$ new-commit push _repository"
+    "../${NewCommitCommand}" push "_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
+    AssertNotExist  "_testing/.commit_before_pull"
+    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_new"
+    DeleteFolder  "_testing"
+}
+
+function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
+    echo ""
+    echo "Test_Pull_NoInput"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+
+    echo "x"  > "_testing/build/out"
+    echo "a"  > "_testing/example.txt"
+    echo "b" >> "_testing/example.txt"
+    echo "c" >> "_testing/example.txt"
+
+    mkdir -p "_testing/_repository"
+    cp  "_testing/.gitignore"  "_testing/_repository/.gitignore"
+    echo "a"  > "_testing/_repository/example.txt"
+    echo "b" >> "_testing/_repository/example.txt"
+    echo "c" >> "_testing/_repository/example.txt"
+
+    pushd "_testing/_repository" > /dev/null
+    git init > /dev/null  2>&1
+    git add "." > /dev/null
+    git commit -m "1st" > /dev/null
+    popd > /dev/null
+
+    #// pull command
+    echo  "$ new-commit"
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}"  ||  TestError
+    popd > /dev/null
+    AssertContents  "_testing/.commit/example.txt"  'a\nb\nc\n'
+
+    echo "a"      > "_testing/example.txt"
+    echo "b"     >> "_testing/example.txt"
+    echo "c new" >> "_testing/example.txt"
+
+    echo  "$ new-commit"
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}"  ||  TestError
+    popd > /dev/null
+    AssertContents  "_testing/.commit/example.txt"      'a\nb\nc\n'
+    AssertContents  "_testing/.commit_new/example.txt"  'a\nb\nc new\n'
+
+    echo  "$ new-commit pull _repository"
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}" pull "_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/example.txt"  'a\nb\nc new\n'
+    AssertNotExist  "_testing/.commit_before_pull"
+    AssertNotExist  "_testing/.commit_repository"
+    AssertContents  "_testing/.commit/example.txt"      'a\nb\nc\n'
+    AssertContents  "_testing/.commit_new/example.txt"  'a\nb\nc new\n'
+
+    #// push command
+    pushd "_testing" > /dev/null
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+    popd > /dev/null
+
+    AssertExist  "_testing/.commit_new"
+
+    pushd "_testing" > /dev/null
+    echo  "$ new-commit push _repository"
+    "../${NewCommitCommand}" push "_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/.commit/example.txt"      'a\nb\nc new\n'
+    AssertNotExist  "_testing/.commit_before_pull"
+    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_new"
+    DeleteFolder  "_testing"
+}
+
+function  Test_Pull_Merge() {
+    echo ""
+    echo "Test_Pull_Merge"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+
+    echo "x" > "_testing/build/out"
+    echo "a"  > "_testing/example.txt"
+    echo "b" >> "_testing/example.txt"
+    echo "c" >> "_testing/example.txt"
+
+    mkdir -p "_testing/_repository"
+    cp  "_testing/.gitignore"  "_testing/_repository/.gitignore"
+    echo "a"      > "_testing/_repository/example.txt"
+    echo "b"     >> "_testing/_repository/example.txt"
+    echo "c new" >> "_testing/_repository/example.txt"
+    pushd "_testing/_repository" > /dev/null
+    git init > /dev/null  2>&1
+    git add "." > /dev/null
+    git commit -m "1st" > /dev/null
+    popd > /dev/null
+
+    #// pull command
+        pushd "_testing" > /dev/null
+
+        echo  "$ new-commit"
+        "../${NewCommitCommand}"  ||  TestError
+
+        echo "a new" > "example.txt"
+        echo "b"    >> "example.txt"
+        echo "c"    >> "example.txt"
+
+        local  output=$( "../${NewCommitCommand}" pull "_repository" )
+        echo "${output}" | grep "ERROR: pull command requires .commit_new folder"  ||  TestError
+
+        echo  "$ new-commit"
+        "../${NewCommitCommand}"  ||  TestError
+
+        echo  "$ new-commit pull _repository"
+        "../${NewCommitCommand}" pull "_repository"
+        local  exitCode=$?
+        popd > /dev/null
+        if [ "${exitCode}" != "0" ]; then
+            TestError  "Failed"
+        fi
+
+        AssertContents  "_testing/example.txt"  'a new\nb\nc new\n'
+        AssertExist     "_testing/.commit_before_pull"
+        AssertExist     "_testing/.commit_repository"
+        AssertNotExist  "_testing/.commit_new"
+        AssertExist     "_testing/.commit"
+
+    #// push command
+        pushd "_testing" > /dev/null
+        echo  "$ new-commit"
+        "../${NewCommitCommand}"  ||  TestError
+        popd > /dev/null
+
+        AssertExist  "_testing/.commit_new"
+
+        pushd "_testing" > /dev/null
+        echo  "$ new-commit push _repository"
+        "../${NewCommitCommand}" push "_repository"
+        local  exitCode=$?
+        popd > /dev/null
+        if [ "${exitCode}" != "0" ]; then
+            TestError  "Failed"
+        fi
+
+        AssertContents  "_testing/_repository/example.txt"  'a new\nb\nc new\n'
+        AssertNotExist  "_testing/.commit_new"
+        AssertNotExist  "_testing/.commit_before_pull"
+        AssertNotExist  "_testing/.commit_repository"
+    DeleteFolder  "_testing"
+}
+
+function  Test_Pull_Conflict() {
+    echo ""
+    echo "Test_Pull_Conflict"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    echo ".DS_Store"   >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+
+    echo "x" > "_testing/build/out"
+    echo "a"  > "_testing/example.txt"
+    echo "b" >> "_testing/example.txt"
+    echo "c" >> "_testing/example.txt"
+
+    mkdir -p "_testing/_repository"
+    cp  "_testing/.gitignore"  "_testing/_repository/.gitignore"
+    echo "a"      > "_testing/_repository/example.txt"
+    echo "b"     >> "_testing/_repository/example.txt"
+    echo "c new" >> "_testing/_repository/example.txt"
+    pushd "_testing/_repository" > /dev/null
+    git init > /dev/null  2>&1
+    git add "." > /dev/null
+    git commit -m "1st" > /dev/null
+    popd > /dev/null
+
+    #// pull command
+        pushd "_testing" > /dev/null
+
+        echo  "$ new-commit"
+        "../${NewCommitCommand}"  ||  TestError
+
+        echo "a"             > "example.txt"
+        echo "b"            >> "example.txt"
+        echo "c conflicted" >> "example.txt"
+
+        echo  "$ new-commit"
+        "../${NewCommitCommand}"  ||  TestError
+
+        echo  "$ new-commit pull _repository"
+        "../${NewCommitCommand}" pull "_repository"
+        local  exitCode=$?
+        popd > /dev/null
+        if [ "${exitCode}" != "0" ]; then
+            TestError  "Failed"
+        fi
+
+        #// Check conflict status
+        AssertContents  "_testing/.commit/example.txt"  'a\nb\nc\n'
+        AssertContents  "_testing/.commit_before_pull/example.txt"  'a\nb\nc conflicted\n'
+        AssertContents  "_testing/.commit_repository/example.txt"   'a\nb\nc new\n'
+        grep  "<<<<<<<"  "_testing/example.txt"  > /dev/null  ||  TestError  #// Expected confilcts
+        local  result="$(cd _testing  &&  git status --short)"
+        if [ "${InGitWorking}" == "${False}" ]; then
+            if [ "${result}" != "$( echo -e 'MM example.txt\n')" ]; then
+                TestError  "Not expected git status: ${result}"
+            fi
+        else
+            echo "${result}" | grep "^AM example.txt$"  > /dev/null  ||  TestError  #// Expected modified
+        fi
+        AssertExist     "_testing/.commit_before_pull"
+        AssertExist     "_testing/.commit_repository"
+        AssertNotExist  "_testing/.commit_new"
+
+    #// Still conflicted (new-commit command)
+        pushd "_testing" > /dev/null
+            echo  "$ new-commit"
+            "../${NewCommitCommand}"  ||  TestError
+        popd > /dev/null
+
+        AssertContents  "_testing/example.txt"  'a\nb\n<<<<<<< HEAD\nc conflicted\n=======\nc new\n>>>>>>> __new-commit_commit_repository\n'
+        AssertExist  "_testing/.commit_before_pull"
+        AssertExist  "_testing/.commit_repository"
+        AssertExist  "_testing/.commit_new"
+
+    #// Resolve conflicts (new-commit command)
+        pushd "_testing" > /dev/null
+            echo "a"         > "example.txt"
+            echo "b"        >> "example.txt"
+            echo "c merged" >> "example.txt"
+            echo  "Resolved."
+
+            echo  "$ new-commit"
+            "../${NewCommitCommand}"  ||  TestError
+        popd > /dev/null
+
+        AssertContents  "_testing/example.txt"  'a\nb\nc merged\n'
+        AssertExist  "_testing/.commit_before_pull"
+        AssertExist  "_testing/.commit_repository"
+        AssertExist  "_testing/.commit_new"
+ 
+    #// push command
+        pushd "_testing" > /dev/null
+            echo  "$ new-commit push _repository"
+            "../${NewCommitCommand}" push "_repository" ||  TestError
+        popd > /dev/null
+
+        AssertContents  "_testing/_repository/example.txt"  'a\nb\nc merged\n'
+        AssertNotExist  "_testing/.commit_before_pull"
+        AssertNotExist  "_testing/.commit_repository"
+        AssertNotExist  "_testing/.commit_new"
+    DeleteFolder  "_testing"
+}
+
+function  Test_Pull_Push_InWorkingSubDirectory() {
+    echo ""
+    echo "Test_Pull_Push_InWorkingSubDirectory"
+
+    #// Set up
+        DeleteFolder  "_testing"
+
+        mkdir -p "_testing"
+        pushd  "_testing"  > /dev/null
+        git init  > /dev/null
+        AssertExist  ".git"
+        echo ".commit"       > ".gitignore"
+        echo ".commit_*"    >> ".gitignore"
+        echo "/example.txt" >> ".gitignore"
+
+        mkdir -p "project"
+        pushd  "project"  > /dev/null
+        echo "1" > "example.txt"
+        git add ".."
+        git commit -m "1st"  > /dev/null
+        echo "2" > "example.txt"
+
+        #// Set up a modified git state
+        local  result=$( git status --short )
+        if [ "${result}" != "$( echo -e ' M example.txt\n' )" ]; then
+            TestError
+        fi
+        popd  > /dev/null
+        popd  > /dev/null
+
+    #// new-commit command
+    pushd  "_testing/project"  > /dev/null
+    echo  "$ new-commit"
+    "../../${NewCommitCommand}"  ||  TestError
+    echo  "$ new-commit"  #// 2nd executing
+    "../../${NewCommitCommand}"  ||  TestError
+    popd  > /dev/null
+    AssertExist     "_testing/project/.commit"
+    AssertNotExist  "_testing/project/.commit_new"
+
+    #// pull command
+    mkdir -p   "_testing/repository"
+    echo "r" > "_testing/repository/example.txt"
+    pushd  "_testing/project"  > /dev/null
+
+    echo  "$ new-commit pull ../repository"
+    "../../${NewCommitCommand}" pull "../repository"  ||  TestError
+    popd  > /dev/null
+    AssertContents  "_testing/project/.commit/example.txt"  '2\n'
+    AssertContents  "_testing/project/.commit_before_pull/example.txt"  '2\n'
+    AssertContents  "_testing/project/.commit_repository/example.txt"   'r\n'
+    DeleteFolder  "_testing"
+}
+
+function  AssertContents() {
+    local  filePath="$1"
+    local  expectedContents="$2"
+
+    local  result="$(cat "${filePath}")"
+    if [ "${result}" != "$( echo -e "${expectedContents}" )" ]; then
+        TestError  "Not expected contents in ${filePath}: ${result}"
+    fi
+}
+
+function  Test_CutLastOf() {
+
+    local  result="$(CutLastOf "aba" "a")"
+    if [ "${result}" != "ab" ]; then
+        TestError  "CutLastOf (1)"
+    fi
+
+    local  result="$(CutLastOf "aba" "x")"
+    if [ "${result}" != "aba" ]; then
+        TestError  "CutLastOf (2)"
+    fi
+
+    local  result="$(CutLastOf "abc" "bc")"
+    if [ "${result}" != "a" ]; then
+        TestError  "CutLastOf (3)"
+    fi
+}
+
+function  CutLastOf() {
+    local  wholeString="$1"
+    local  lastExpected="$2"
+
+    if [ "${wholeString:${#wholeString}-${#lastExpected}:${#lastExpected}}" == "${lastExpected}" ]; then
+        echo  "${wholeString:0:${#wholeString}-${#lastExpected}}"
+    else
+        echo  "${wholeString}"
+    fi
 }
 
 function  Test_Assert() {
-    rm -rf "_testing"
+    DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
+    echo "x" > "_testing/build/out X"
 
     AssertExist  "_testing/build/out"
     AssertNotExist  "_testing/build/not_found"
@@ -341,24 +831,160 @@ function  Test_Assert() {
     EndErrorTest  'ERROR: Read only file "_testing/build/out"'
     chmod +w  "_testing/build/out"
     AssertNotReadOnly  "_testing/build/out"
+
+    #// contains space
+    AssertExist  "_testing/build/out X"
+    AssertNotExist  "_testing/build/out not_found"
+
+    StartErrorTest
+        AssertExist  "_testing/build/out not_found"
+    EndErrorTest  'ERROR: Not found "_testing/build/out not_found"'
+    StartErrorTest
+        AssertNotExist  "_testing/build/out X"
+    EndErrorTest  'ERROR: Found "_testing/build/out X"'
+
+    StartErrorTest
+        AssertReadOnly  "_testing/build/out X"
+    EndErrorTest  'ERROR: Not read only file "_testing/build/out X"'
+    chmod -w  "_testing/build/out X"
+    AssertReadOnly  "_testing/build/out X"
+
+    StartErrorTest
+        AssertNotReadOnly  "_testing/build/out X"
+    EndErrorTest  'ERROR: Read only file "_testing/build/out X"'
+    chmod +w  "_testing/build/out X"
+    AssertNotReadOnly  "_testing/build/out X"
 }
 
 function  MakePushTestFiles() {
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
-    echo "x" > "_testing/example.c"
-    echo ".commit" > "_testing/.gitignore"
-    echo "build"  >> "_testing/.gitignore"
-    mkdir -p "_testing/_pushed/.git"
-    echo "git" > "_testing/_pushed/.git/files"
-    echo "old" > "_testing/_pushed/old_files"
+    echo "x" > "_testing/example.txt"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    mkdir -p "_testing/_repository/.git"
+    echo "git" > "_testing/_repository/.git/files"
+    echo "old" > "_testing/_repository/old_files"
+}
+
+function  GetGitWorkingRootPath() {
+    local  path="${PWD}"
+    while [ "${path}" != "" ]; do
+
+        if [ -e "${path}/.git" ]; then
+            echo  "${path}"
+            return
+        fi
+        path="${path%/*}" 
+    done
+
+    echo  ""
+}
+
+function  Test_CopyFolder() {
+    DeleteFolder  "_testing"
+    mkdir -p   "_testing/source"
+    echo "x" > "_testing/source/a"
+    echo "x" > "_testing/source/.a"
+    echo "x" > "_testing/source/..a"
+    mkdir -p   "_testing/source/node_modules/type"
+    echo "x" > "_testing/source/node_modules/type/a"
+    echo "x" > "_testing/source/node_modules/type/.a"
+    echo "x" > "_testing/source/node_modules/type/..a"
+    mkdir -p   "_testing/source/.vscode"
+    echo "x" > "_testing/source/.vscode/a"
+    echo "x" > "_testing/source/.vscode/.a"
+    echo "x" > "_testing/source/.vscode/..a"
+    mkdir -p   "_testing/source/.git"
+    echo "x" > "_testing/source/.git/a"
+    echo "x" > "_testing/source/.git/.a"
+    echo "x" > "_testing/source/.git/..a"
+    mkdir -p   "_testing/source/..d"
+    echo "x" > "_testing/source/..d/a"
+    echo "x" > "_testing/source/..d/.a"
+    echo "x" > "_testing/source/..d/..a"
+
+    CopyFolder  "_testing/source"  "_testing/destination"
+    AssertExist  "_testing/destination/a"
+    AssertExist  "_testing/destination/.a"
+    AssertExist  "_testing/destination/..a"
+    AssertExist  "_testing/destination/node_modules/type/a"
+    AssertExist  "_testing/destination/node_modules/type/.a"
+    AssertExist  "_testing/destination/node_modules/type/..a"
+    AssertExist  "_testing/destination/.vscode/a"
+    AssertExist  "_testing/destination/.vscode/.a"
+    AssertExist  "_testing/destination/.vscode/..a"
+    AssertExist  "_testing/destination/.git/a"
+    AssertExist  "_testing/destination/.git/.a"
+    AssertExist  "_testing/destination/.git/..a"
+    AssertExist  "_testing/destination/..d/a"
+    AssertExist  "_testing/destination/..d/.a"
+    AssertExist  "_testing/destination/..d/..a"
+    DeleteFolder  "_testing/destination"
+
+    CopyFolder  "_testing/source"  "_testing/destination"  "--exclude=./.git"
+    AssertExist  "_testing/destination/a"
+    AssertExist  "_testing/destination/.a"
+    AssertExist  "_testing/destination/..a"
+    AssertExist  "_testing/destination/node_modules/type/a"
+    AssertExist  "_testing/destination/node_modules/type/.a"
+    AssertExist  "_testing/destination/node_modules/type/..a"
+    AssertExist  "_testing/destination/.vscode/a"
+    AssertExist  "_testing/destination/.vscode/.a"
+    AssertExist  "_testing/destination/.vscode/..a"
+    AssertNotExist  "_testing/destination/.git"
+    AssertExist  "_testing/destination/..d/a"
+    AssertExist  "_testing/destination/..d/.a"
+    AssertExist  "_testing/destination/..d/..a"
+    DeleteFolder  "_testing"
+}
+
+function  CopyFolder() {
+    local  source="$1"
+    local  destination="$2"
+    local  ignoreDotGit="$3"  #// ${True}, ${False}(default)
+    local  excludeOption="--exclude=./.git"
+    source="$( CutLastOf  "${source}"  "/" )"
+    destination="$( CutLastOf  "${destination}"  "/" )"
+    if [ "${ignoreDotGit}" != ""  -a  "${ignoreDotGit}" != "${excludeOption}" ]; then
+        TestError  "Bad option: ${ignoreDotGit}"
+        return  "${False}"
+    fi
+
+    mkdir -p  "${destination}/"
+    if [ "${ignoreDotGit}" == "${excludeOption}" ]; then
+        ls -a "${source}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
+            cp -Rap  "${source}/{}"  "${destination}/"
+    else
+        ls -a "${source}" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
+            cp -Rap  "${source}/{}"  "${destination}/"
+    fi
+}
+
+function  DeleteFolder() {
+    local  folderPath="$1"
+    local  retryCount=5
+
+    while true; do
+        rm -rf  "${folderPath}"
+        if [ "$?" == "${True}" ]; then
+            return
+        fi
+        retryCount="$(( ${retryCount} - 1 ))"
+        if [ "${retryCount}" == "0" ]; then
+            Error  "Cannot delete a folder \"${folderPath}\""
+        fi
+        sleep 2s
+    done
 }
 
 function  AssertExist() {
     local  path="$1"
 
     if [ ! -e "${path}" ]; then
-        Error  "ERROR: Not found \"${path}\""
+        TestError  "ERROR: Not found \"${path}\""
     fi
 }
 
@@ -366,7 +992,7 @@ function  AssertNotExist() {
     local  path="$1"
 
     if [ -e "${path}" ]; then
-        Error  "ERROR: Found \"${path}\""
+        TestError  "ERROR: Found \"${path}\""
     fi
 }
 
@@ -378,7 +1004,7 @@ function  AssertReadOnly() {
     echo "${attributes:0:10}" | grep w  > /dev/null  &&  writable=${True}
 
     if [ "${writable}" == "${True}" ]; then
-        Error  "ERROR: Not read only file \"${path}\""
+        TestError  "ERROR: Not read only file \"${path}\""
     fi
 }
 
@@ -390,7 +1016,7 @@ function  AssertNotReadOnly() {
     echo "${attributes:0:10}" | grep w  > /dev/null  &&  writable=${True}
 
     if [ "${writable}" == "${False}" ]; then
-        Error  "ERROR: Read only file \"${path}\""
+        TestError  "ERROR: Read only file \"${path}\""
     fi
 }
 
@@ -400,7 +1026,7 @@ function  AssertInstalled() {
     which "${checkingCommand}" > /dev/null  &&  exists=${True}
 
     if [ "${exists}" == ${False} ]; then
-        Error  "ERROR: Not installed \"${checkingCommand}\" command"
+        TestError  "ERROR: Not installed \"${checkingCommand}\" command"
     fi
 }
 
@@ -408,7 +1034,7 @@ function  Test_Error() {
     local  currentErrorCount="${ErrorCount}"
 
     #// Test
-    Error  "Test_Error"
+    TestError  "Test_Error"
     if [ ${ErrorCount} == ${currentErrorCount} ]; then
         echo  "Error: in Error"
         exit  1
@@ -428,7 +1054,7 @@ function  Test_Error() {
     #// Test
     currentErrorCount="${ErrorCount}"
     StartErrorTest
-    Error  "Test of StartErrorTest (2)"
+    TestError  "Test of StartErrorTest (2)"
     EndErrorTest  "Test of StartErrorTest (2)"
     if [ ${ErrorCount} != ${currentErrorCount} ]; then
         echo  "Error: test 2 in StartErrorTest or EndErrorTest"
@@ -439,7 +1065,7 @@ function  Test_Error() {
     echo  "Passed Test_Error."
 }
 
-function  Error() {
+function  TestError() {
     local  errorMessage="$1"
     if [ "${ErrorCountBeforeStart}" == "${NotInErrorTest}" ]; then
 
@@ -464,15 +1090,15 @@ function  EndErrorTest() {
 
     if [ "${ErrorCount}" == "${errorCountBeforeStart}" ]; then
         if [ "${expectedErrorMessage}" == "" ]; then
-            Error  "ERROR: EndErrorTest has no parameter"
+            TestError  "ERROR: EndErrorTest has no parameter"
         else
-            Error  "ERROR: Expected an error of \"${expectedErrorMessage}\" but no error"
+            TestError  "ERROR: Expected an error of \"${expectedErrorMessage}\" but no error"
         fi
     elif [ "${expectedErrorMessage}" != "${LastErrorMessage}" ]; then
         if [ "${expectedErrorMessage}" == "" ]; then
-            Error  "ERROR: EndErrorTest has no parameter. \"${LastErrorMessage}\" error was occurred"
+            TestError  "ERROR: EndErrorTest has no parameter. \"${LastErrorMessage}\" error was occurred"
         else
-            Error  "ERROR: Expected an error of \"${expectedErrorMessage}\" but \"${LastErrorMessage}\""
+            TestError  "ERROR: Expected an error of \"${expectedErrorMessage}\" but \"${LastErrorMessage}\""
         fi
     else
         ErrorCount="${errorCountBeforeStart}"
@@ -483,11 +1109,20 @@ function  EndOfTest() {
     echo  ""
     echo  "ErrorCount: ${ErrorCount}"
     if [ "${ErrorCount}" == "0" ]; then
+        if [ "${InGitWorking}" == "${True}" ]; then
+            echo  "InGitWorking = True.  Also, you must test \"InGitWorking = False\"."
+        else
+            echo  "InGitWorking = False.  Also, you must test \"InGitWorking = True\"."
+        fi
         echo  "Pass."
     fi
 }
 
 True=0
 False=1
+InGitWorking="${True}"
+if [ "$( GetGitWorkingRootPath )" == "" ]; then
+    InGitWorking="${False}"
+fi
 
 AllTest
