@@ -177,7 +177,7 @@ The pull command merges the contents of
         Files .commit/example.txt and .commit_repository/example.txt differ
 
 `.commit_before_pull` folder and `.commit_repository` folder are created,
-when the contents of the latest repository folder are changed from
+when the contents of the latest repository folder were changed from
 the contents of `.commit` folder.
 
 - `.commit_before_pull` folder: Contents of current folder before pull command

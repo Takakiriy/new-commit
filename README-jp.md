@@ -175,7 +175,7 @@ pull コマンドを実行すると `__RepositoryFolderPath__` フォルダー�
     1 file changed, 1 insertion(+), 1 deletion(-)
         Files .commit/example.txt and .commit_repository/example.txt differ
 
-最新の リポジトリ フォルダー の内容が `.commit` フォルダーの内容から変わったときは、
+最新の リポジトリ フォルダー の内容が `.commit` フォルダーの内容から変わっていたときは、
 `.commit_before_pull` フォルダーと `.commit_repository` フォルダーが作られます。
 
 - .commit_before_pull フォルダー: pull コマンドを実行する前の カレント フォルダー の内容
