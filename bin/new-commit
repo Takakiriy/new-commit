@@ -1,4 +1,9 @@
 #!/bin/bash
+# if [ "${USERPROFILE}" == "" ]; then  #// for WSL2
+#     export USERPROFILE="/mnt/c/Users/$( cmd.exe /c 'echo %USERNAME%' )";
+#     export USERPROFILE="${USERPROFILE:0:${#USERPROFILE}-1}"  #// Cut last CR
+# fi
+# ${USERPROFILE}/Desktop/new-commit/bin/restore-folders-1
 
 function  Main() {
     local  subCommand="$1"
@@ -70,7 +75,8 @@ function  NewCommit() {
     fi
 
     #// Set read only
-    find "${outputFolderName}" -type f  |  xargs  -I {}  chmod -w "{}"
+    find "${outputFolderName}" -type f  |  xargs  -I {} \
+        chmod -w "{}"
 
     #// Show conflict file names
     pushd  "${outputFolderName}" > /dev/null
@@ -104,7 +110,7 @@ function  NewCommit() {
 }
 
 function  Push() {
-    local  repositoryFolderPath="$2"
+    local  repositoryFolderPath=$( ResolvePath "$2" )
     repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
     if [ "${repositoryFolderPath}" == "" ]; then
         Error  "ERROR: No main folder  Command: new-commit push __RepositoryFolderPath__"
@@ -144,7 +150,7 @@ function  Push() {
 }
 
 function  Pull() {
-    local  repositoryFolderPath="$2"
+    local  repositoryFolderPath=$( ResolvePath "$2" )
     repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
     if [ "${repositoryFolderPath}" == "" ]; then
         Error  "ERROR: No main folder  Command: new-commit pull __RepositoryFolderPath__"
@@ -168,11 +174,7 @@ function  Pull() {
         #// (.commit case) Check no update
         if [ "${source}" == ".commit" ]; then
             NewCommit > /dev/null
-            if [ -e ".commit_new" ]; then
-                rm -rf  ".commit_repository"
-                rm -rf  ".commit_new"
-                Error  "ERROR: pull command requires .commit_new folder, if working folder was changed. Run new-commit command."
-            fi
+            source=".commit_new"
         fi
 
         #// Create ".commit_repository" folder
@@ -207,7 +209,9 @@ function  Pull() {
     fi
 
     #// Add to stage in parent .git, if the parent .git includes current folder. 
+    local  parentDotGit="${False}"
     if [ ! -e ".git" ]; then
+        parentDotGit="${True}"
         git add  "."  > /dev/null
     fi
 
@@ -224,14 +228,20 @@ function  Pull() {
                 clean="${True}"
             fi
             if [ "${clean}" == "${False}" ]; then
-                mv  ".git"  ".."
-                popd  > /dev/null
-                Error  "ERROR .commit folder is not git clean status"
+                git add "."
+                git commit -m "Reverted to .commit contents."  > /dev/null
+                echo  "Added a commit to revert to .commit contents."
+                if [ "$(git status --short)" != "" ]; then
+                    mv  ".git"  ".."
+                    popd  > /dev/null
+                    Error  "ERROR .commit folder is not git clean status"
+                fi
             fi
 
             mkdir -p  "../.commit_repository/.git"
             ls -a ".git" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
                 cp -Rap  ".git/{}"  "../.commit_repository/.git"
+            mv  ".git"  ".."
         else
             git init  > /dev/null  ||  Error
             git add  "."
@@ -254,6 +264,7 @@ function  Pull() {
     #// Change current branch
         cd  "../.commit_temporary"
         git checkout "${currentBranch}" > /dev/null 2>&1  ||  Error
+        rm -rf  "../.git"
         mv  ".git"  ".."
         cd  ".."
         rm -rf  ".commit_temporary"
@@ -270,7 +281,9 @@ function  Pull() {
 
         git merge  "__new-commit_commit_repository" --no-edit  > /dev/null
     fi
-    rm -rf  ".git"
+    if [ "${parentDotGit}" == "${True}" ]; then
+        rm -rf  ".git"
+    fi
 
     #// Restore .git folder and stage before pull files
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
@@ -288,7 +301,7 @@ function  Pull() {
     else
         echo  'Renamed \".commit_before_pull\" folder to \".commit_new\" folder'
         echo  'Deleted \".commit_repository\" folder'
-        echo  'No change'
+        echo  'Pull command did not change any files.'
         if [ -e ".commit/.git" ]; then
             mv  ".commit/.git"  "."
         fi
@@ -306,6 +319,23 @@ function  echoWithIndent() {
         echo "${indent}${line}"
     done
     unset IFS
+}
+
+function  ResolvePath() {
+    local  path_="$1"
+
+    path_="$( echo "${path_}" | sed -e 's/\\/\//g' | sed -e 's/^C:/c:/' )"  #// replace to / and c:
+
+    if [ "${mnt_c}" == "" ]; then
+        export  mnt_c="/mnt/c";  if [ ! -e "/mnt/c" ]; then  export  mnt_c="c:"  ;fi
+    fi
+    if [ "${path_:0:3}" == "c:/"  -o  "${path_:0:3}" == "/c/" ]; then
+        path_="${mnt_c}/${path_:3}"
+    elif [ "${path_:0:7}" == "/mnt/c/" ]; then
+        path_="${mnt_c}/${path_:7}"
+    fi
+
+    echo  "${path_}"
 }
 
 function  GetGitWorkingRootPath() {

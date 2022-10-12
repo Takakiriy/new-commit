@@ -6,6 +6,7 @@ NewCommitCommand="../bin/new-commit"
 
 function  AllTest() {
     Test_Error
+    Test_ResolvePath
     Test_Assert
     Test_CutLastOf
     Test_CopyFolder
@@ -869,6 +870,36 @@ function  MakePushTestFiles() {
     echo "old" > "_testing/_repository/old_files"
 }
 
+function  Test_ResolvePath() {
+    ResolvePath > /dev/null  #// Set "mnt_c" environmet variable
+    if [ "$( ResolvePath "/mnt/c/" )" != "${mnt_c}/" ]; then  TestError;  fi
+    if [ "$( ResolvePath "c:/" )"     != "${mnt_c}/" ]; then  TestError;  fi
+    if [ "$( ResolvePath "/c/" )"     != "${mnt_c}/" ]; then  TestError;  fi
+    if [ "$( ResolvePath "/home" )"   != "/home" ]; then  TestError;  fi
+    if [ "$( ResolvePath "relative" )"      != "relative" ]; then  TestError;  fi
+    if [ "$( ResolvePath "relative/path" )" != "relative/path" ]; then  TestError;  fi
+    if [ "$( ResolvePath "/mnt/c/root-path" )" != "${mnt_c}/root-path" ]; then  TestError;  fi
+    if [ "$( ResolvePath 'C:\' )"      != "${mnt_c}/" ]; then  TestError;  fi
+    if [ "$( ResolvePath 'C:\Users' )" != "${mnt_c}/Users" ]; then  TestError;  fi
+}
+
+function  ResolvePath() {
+    local  path_="$1"
+
+    path_="$( echo "${path_}" | sed -e 's/\\/\//g' | sed -e 's/^C:/c:/' )"  #// replace to / and c:
+
+    if [ "${mnt_c}" == "" ]; then
+        export  mnt_c="/mnt/c";  if [ ! -e "/mnt/c" ]; then  export  mnt_c="c:"  ;fi
+    fi
+    if [ "${path_:0:3}" == "c:/"  -o  "${path_:0:3}" == "/c/" ]; then
+        path_="${mnt_c}/${path_:3}"
+    elif [ "${path_:0:7}" == "/mnt/c/" ]; then
+        path_="${mnt_c}/${path_:7}"
+    fi
+
+    echo  "${path_}"
+}
+
 function  GetGitWorkingRootPath() {
     local  path="${PWD}"
     while [ "${path}" != "" ]; do
@@ -1067,6 +1098,9 @@ function  Test_Error() {
 
 function  TestError() {
     local  errorMessage="$1"
+    if [ "${errorMessage}" == "" ]; then
+        errorMessage="ERROR: a test error"
+    fi
     if [ "${ErrorCountBeforeStart}" == "${NotInErrorTest}" ]; then
 
         echo  "${errorMessage}"
