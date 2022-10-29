@@ -556,12 +556,6 @@ function  Test_Pull_Merge() {
         echo "b"    >> "example.txt"
         echo "c"    >> "example.txt"
 
-        local  output=$( "../${NewCommitCommand}" pull "_repository" )
-        echo "${output}" | grep "ERROR: pull command requires .commit_new folder"  ||  TestError
-
-        echo  "$ new-commit"
-        "../${NewCommitCommand}"  ||  TestError
-
         echo  "$ new-commit pull _repository"
         "../${NewCommitCommand}" pull "_repository"
         local  exitCode=$?
@@ -658,9 +652,7 @@ function  Test_Pull_Conflict() {
         grep  "<<<<<<<"  "_testing/example.txt"  > /dev/null  ||  TestError  #// Expected confilcts
         local  result="$(cd _testing  &&  git status --short)"
         if [ "${InGitWorking}" == "${False}" ]; then
-            if [ "${result}" != "$( echo -e 'MM example.txt\n')" ]; then
-                TestError  "Not expected git status: ${result}"
-            fi
+            echo "${result}" | grep "^UU example.txt$"  > /dev/null  ||  TestError  #// Expected both modified
         else
             echo "${result}" | grep "^AM example.txt$"  > /dev/null  ||  TestError  #// Expected modified
         fi
@@ -1103,7 +1095,7 @@ function  TestError() {
     fi
     if [ "${ErrorCountBeforeStart}" == "${NotInErrorTest}" ]; then
 
-        echo  "${errorMessage}"
+        echo  "ERROR: ${errorMessage}"
     fi
     LastErrorMessage="${errorMessage}"
     ErrorCount=$(( ${ErrorCount} + 1 ))

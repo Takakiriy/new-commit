@@ -2,18 +2,20 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Test",
             "type": "bashdb",
             "request": "launch",
-            "name": "Bash-Debug (simplest configuration)",
             "program": "${workspaceFolder}/test/test-new-commit",
             "cwd": "${workspaceFolder}",
             "args": []
-            // "program": "${workspaceFolder}/bin/new-commit",
-            // "cwd": "${workspaceFolder}/test/_testing",
-            // "args": ["pull", "_repository"]
-            // "program": "${workspaceFolder}/bin/new-commit",
-            // "cwd": "/home/$USER/_try_pytest_part",
-            // "args": ["pull", "/home/$USER/_in_repository"]
+        },
+        {
+            "name": "Child process",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/bin/new-commit",
+            "cwd": "${workspaceFolder}/test/_testing",
+            "args": ["pull", "_repository"]
         }
     ]
 }

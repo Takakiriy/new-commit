@@ -162,19 +162,21 @@ function  Pull() {
         source=".commit"
     fi
 
+    #// Create ".commit_new" folder
+    if [ "${source}" == ".commit" ]; then
+        NewCommit > /dev/null
+        if [ -e ".commit_new" ]; then
+            source=".commit_new"
+        fi
+    fi
+
     #// Create ".commit_repository" folder
-    #// "commit_repository" is a copy of the current repository's folder
+    #// ".commit_repository" is a copy of a folder in related repository at
     #// "repositoryFolderPath", minus the files covered by ".gitignore".
         AssertNotExist  "${repositoryFolderPath}/.commit_new"
         local  thereIsRepositoryCommit=${False}
         if [ -e "${repositoryFolderPath}/.commit" ]; then
             thereIsRepositoryCommit=${True}
-        fi
-
-        #// (.commit case) Check no update
-        if [ "${source}" == ".commit" ]; then
-            NewCommit > /dev/null
-            source=".commit_new"
         fi
 
         #// Create ".commit_repository" folder
