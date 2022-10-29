@@ -22,6 +22,7 @@ function  AllTest() {
     Test_Push_1
     Test_Push_NoCommitNewNoDiff
     Test_Push_NoCommitError
+    Test_Push_Null
     Test_Pull_1
     Test_Pull_NoInput
     Test_Pull_Merge
@@ -35,7 +36,9 @@ function  Test_1() {
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
     echo "x" > "_testing/example.txt"
-    echo "build" > "_testing/.gitignore"
+    echo "build"      > "_testing/.gitignore"
+    echo ".commit"   >> "_testing/.gitignore"
+    echo ".commit_*" >> "_testing/.gitignore"
     echo ""
     echo "Test_1"
 
@@ -362,6 +365,55 @@ function  Test_Push_NoCommitError() {
         TestError  "Failed"
     fi
     AssertNotExist  "_testing/_repository/example.txt"
+    DeleteFolder  "_testing"
+}
+
+function  Test_Push_Null() {
+    echo ""
+    echo "Test_Push_Null"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"     > "_testing/.gitignore"
+    echo ".commit_*"  >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+
+    echo "a"  > "_testing/example.txt"
+    echo "b" >> "_testing/example.txt"
+    echo "c" >> "_testing/example.txt"
+
+    pushd "_testing" > /dev/null
+
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+    popd > /dev/null
+    AssertExist     "_testing/.commit"
+    AssertNotExist  "_testing/.commit_new"
+
+    echo "a new"  > "_testing/example.txt"
+    echo "b"     >> "_testing/example.txt"
+    echo "c"     >> "_testing/example.txt"
+
+    pushd "_testing" > /dev/null
+
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+    popd > /dev/null
+    AssertExist  "_testing/.commit_new"
+
+    echo  "$ new-commit push /dev/null"
+    pushd "_testing" > /dev/null
+    "../${NewCommitCommand}" push "/dev/null"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/example.txt"  'a new\nb\nc\n'
+    AssertNotExist  "_testing/.commit_new"
+    AssertExist     "_testing/.commit"
+    AssertContents  "_testing/.commit/example.txt"  'a new\nb\nc\n'
     DeleteFolder  "_testing"
 }
 

@@ -105,6 +105,7 @@ Sample commands:
 
     $ cd __WorkingDirectory__
     $ new-commit
+    Added .git folder and first commit.
     Created new ".commit" folder.
     This will be treated as base commit.
     $ ls .commit
@@ -233,8 +234,8 @@ and turn off the read-only attribute of the file.
 Also move files in the `.commit_new` folder into the `.commit` folder
 and delete `.commit_new` folder.
 
-Only if there is no difference between `.commit` and `.commit_new` folders
-(only if `.commit_new` folder is not created),
+If there is no difference between `.commit` and `.commit_new` folders
+(if `.commit_new` folder is not created),
 copy files in `.commit` folder to the `__RepositoryFolderPath__` folder
 and turn off the read-only attribute of the file.
 
@@ -242,3 +243,7 @@ and turn off the read-only attribute of the file.
 - Files that there are in `__RepositoryFolderPath__` but not in `.commit_new` folder
     is deleted
 - `.git` folder directly under `__RepositoryFolderPath__` is not changed
+
+Specifying `__RepositoryFolderPath__` as `/dev/null` will copy no file and
+move files in the `.commit_new` folder into the `.commit` folder
+and delete `.commit_new` folder.

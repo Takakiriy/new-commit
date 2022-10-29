@@ -105,6 +105,7 @@ flowchart TD;
 
     $ cd __WorkingDirectory__
     $ new-commit
+    Added .git folder and first commit.
     Created new ".commit" folder.
     This will be treated as base commit.
     $ ls .commit
@@ -231,8 +232,8 @@ push コマンドを実行すると `.commit_new` フォルダーの内容を `_
 また、`.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
 `.commit_new` フォルダーを削除します。
 
-`.commit` フォルダーと `.commit_new` フォルダーに違いがない場合のみ
-（`.commit_new` フォルダーが作られない場合のみ）、
+`.commit` フォルダーと `.commit_new` フォルダーに違いがない場合は
+（`.commit_new` フォルダーが作られない場合は）、
 `.commit` フォルダーの内容を `__RepositoryFolderPath__`
 にコピーして、ファイルの読み取り専用属性をオフにします。
 
@@ -240,3 +241,7 @@ push コマンドを実行すると `.commit_new` フォルダーの内容を `_
 - `__RepositoryFolderPath__` にあったファイルのうち、`.commit_new` フォルダーに無いファイルは
     削除されます
 - `__RepositoryFolderPath__` の直下の `.git` フォルダーは、変化しません
+
+`__RepositoryFolderPath__` に `/dev/null` を指定すると、コピーを行わず、
+`.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
+`.commit_new` フォルダーを削除します。

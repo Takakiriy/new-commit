@@ -1,9 +1,4 @@
 #!/bin/bash
-# if [ "${USERPROFILE}" == "" ]; then  #// for WSL2
-#     export USERPROFILE="/mnt/c/Users/$( cmd.exe /c 'echo %USERNAME%' )";
-#     export USERPROFILE="${USERPROFILE:0:${#USERPROFILE}-1}"  #// Cut last CR
-# fi
-# ${USERPROFILE}/Desktop/new-commit/bin/restore-folders-1
 
 function  Main() {
     local  subCommand="$1"
@@ -36,6 +31,7 @@ function  NewCommit() {
         git add "."  > /dev/null  2>&1
         git commit  -m "new-commit) Created local working directory"  > /dev/null  2>&1
         mkdir  "${outputFolderName}"
+        echo  "Added .git folder and first commit."
 
         git checkout-index -a -f --prefix="${outputFolderName}/"
     else
@@ -132,12 +128,14 @@ function  Push() {
     fi
 
     #// Copy files and disable read only
-    echo  "Copied files and disabled read only to \"${repositoryFolderPath}\" folder"
-    ls -a "${repositoryFolderPath}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
-        rm -rf  "${repositoryFolderPath}/{}"
-    CopyFolder  "${source}"  "${repositoryFolderPath}"  "--exclude=./.git"
-    find "${repositoryFolderPath}" -type f  |  xargs -I {} \
-        chmod +w "{}"
+    if [ "${repositoryFolderPath}" != "/dev/null" ]; then
+        echo  "Copied files and disabled read only to \"${repositoryFolderPath}\" folder"
+        ls -a "${repositoryFolderPath}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
+            rm -rf  "${repositoryFolderPath}/{}"
+        CopyFolder  "${source}"  "${repositoryFolderPath}"  "--exclude=./.git"
+        find "${repositoryFolderPath}" -type f  |  xargs -I {} \
+            chmod +w "{}"
+    fi
 
     #// (.commit_new case) Update .commit folder
     if [ "${source}" == ".commit_new" ]; then
