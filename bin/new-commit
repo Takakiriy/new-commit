@@ -3,11 +3,18 @@
 function  Main() {
     local  subCommand="$1"
     AssertInstalled  "git"
-    if [ "${subCommand}" == ""  -o  "${subCommand}" == "status" ]; then
+    if [ "${subCommand}" == "" ]; then
         NewCommit
+    elif [ "${subCommand:0:1}" == "-" ]; then
+        NewCommit  "$@"
+    elif [ "${subCommand}" == "status" ]; then
+        shift
+        NewCommit  "$@"
     elif [ "${subCommand}" == "push" ]; then
+        shift
         Push  "$@"
     elif [ "${subCommand}" == "pull" ]; then
+        shift
         Pull  "$@"
     else
         Error  "ERROR: Unknown sub command \"${subCommand}\""
@@ -15,11 +22,21 @@ function  Main() {
 }
 
 function  NewCommit() {
+    local  option="$1"
+    local  noGitOption="${False}"
+    if [ "${option}" == "--no-git" ]; then
+        noGitOption="${True}"
+    elif [ "${option}" != "" ]; then
+        Error  "Unknown option \"${option}\""
+    fi
     local  currentFolder="${PWD}"
     local  gitWorkingRootPath="$( GetGitWorkingRootPath )"
     local  outputFolderName
     if [ ! -e ".commit" ]; then
         outputFolderName=".commit"
+        if [ "${currentFolder}" == "${gitWorkingRootPath}"  -a  "${noGitOption}" == "${False}" ]; then
+            Error  "new-commit command cannot create new \".commit\" folder where \".git\" folder exists."
+        fi
     else
         outputFolderName=".commit_new"
     fi
@@ -27,21 +44,16 @@ function  NewCommit() {
     #// Copy files by "git checkout-index"
     if [ "${gitWorkingRootPath}" == "" ]; then
         rm -rf  "${outputFolderName}"
-        git init  > /dev/null  2>&1
-        git add "."  > /dev/null  2>&1
-        git commit  -m "new-commit) Created local working directory"  > /dev/null  2>&1
+        if [ "${noGitOption}" == "${False}" ]; then
+            git init  > /dev/null  2>&1
+            git add "."  > /dev/null  2>&1
+            git commit  -m "new-commit) Created local working directory"  > /dev/null  2>&1
+            echo  "Added .git folder and first commit."
+        fi
         mkdir  "${outputFolderName}"
-        echo  "Added .git folder and first commit."
 
         git checkout-index -a -f --prefix="${outputFolderName}/"
     else
-        local  clean="${False}"
-        local  status="$(git status --short)"
-        if [ "${status}" == "" ]; then
-            clean="${True}"
-        fi
-
-        #// git checkout-index
         rm -rf  "${outputFolderName}"
         if [ "${currentFolder}" == "${gitWorkingRootPath}" ]; then
             mkdir -p  "${outputFolderName}"
@@ -71,8 +83,10 @@ function  NewCommit() {
     fi
 
     #// Set read only
-    find "${outputFolderName}" -type f  |  xargs  -I {} \
-        chmod -w "{}"
+    if [ "${noGitOption}" == "${False}" ]; then
+        find "${outputFolderName}" -type f  |  xargs  -I {} \
+            chmod -w "{}"
+    fi
 
     #// Show conflict file names
     pushd  "${outputFolderName}" > /dev/null
@@ -87,7 +101,9 @@ function  NewCommit() {
     #// Show different file names
     if [ "${outputFolderName}" == ".commit" ]; then
         echo  'Created new ".commit" folder.'
-        echo  'This will be treated as base commit.'
+        if [ "${noGitOption}" == "${False}" ]; then
+            echo  'This will be treated as base commit.'
+        fi
     fi
 
     if [ "${outputFolderName}" == ".commit_new" ]; then
@@ -106,10 +122,10 @@ function  NewCommit() {
 }
 
 function  Push() {
-    local  repositoryFolderPath=$( ResolvePath "$2" )
+    local  repositoryFolderPath=$( ResolvePath "$1" )
     repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
     if [ "${repositoryFolderPath}" == "" ]; then
-        Error  "ERROR: No main folder  Command: new-commit push __RepositoryFolderPath__"
+        Error  "No main folder  Command: new-commit push __RepositoryFolderPath__"
     fi
     AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
@@ -123,7 +139,7 @@ function  Push() {
         NewCommit > /dev/null
         if [ -e ".commit_new" ]; then
             rm -rf  ".commit_new"
-            Error  "ERROR: push command requires .commit_new folder, if update file exists. Run new-commit command."
+            Error  "push command requires .commit_new folder, if update file exists. Run new-commit command."
         fi
     fi
 
@@ -148,10 +164,10 @@ function  Push() {
 }
 
 function  Pull() {
-    local  repositoryFolderPath=$( ResolvePath "$2" )
+    local  repositoryFolderPath=$( ResolvePath "$1" )
     repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
     if [ "${repositoryFolderPath}" == "" ]; then
-        Error  "ERROR: No main folder  Command: new-commit pull __RepositoryFolderPath__"
+        Error  "No main folder  Command: new-commit pull __RepositoryFolderPath__"
     fi
     AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
@@ -181,7 +197,7 @@ function  Pull() {
         rm -rf  ".commit_repository"
         pushd  "${repositoryFolderPath}" > /dev/null
 
-        NewCommit > /dev/null
+        NewCommit --no-git > /dev/null
         popd > /dev/null
         if [ -e "${repositoryFolderPath}/.commit_new" ]; then
             mv  "${repositoryFolderPath}/.commit_new"  ".commit_repository"
@@ -234,7 +250,7 @@ function  Pull() {
                 if [ "$(git status --short)" != "" ]; then
                     mv  ".git"  ".."
                     popd  > /dev/null
-                    Error  "ERROR .commit folder is not git clean status"
+                    Error  ".commit folder is not git clean status"
                 fi
             fi
 
@@ -397,7 +413,7 @@ function  AssertExist() {
     local  path="$1"
 
     if [ ! -e "${path}" ]; then
-        Error  "ERROR: Not found \"${path}\""
+        Error  "Not found \"${path}\""
     fi
 }
 
@@ -405,7 +421,7 @@ function  AssertNotExist() {
     local  path="$1"
 
     if [ -e "${path}" ]; then
-        Error  "ERROR: Found \"${path}\""
+        Error  "Found \"${path}\""
     fi
 }
 
@@ -415,13 +431,13 @@ function  AssertInstalled() {
     which "${checkingCommand}" > /dev/null  &&  exists=${True}
 
     if [ "${exists}" == ${False} ]; then
-        Error  "ERROR: Not installed \"${checkingCommand}\" command"
+        Error  "Not installed \"${checkingCommand}\" command"
     fi
 }
 
 function  Error() {
     local  errorMessage="$1"
-    echo  "${errorMessage}"
+    echo  "ERROR: ${errorMessage}"
     exit  2
 }
 

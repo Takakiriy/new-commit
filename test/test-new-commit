@@ -28,6 +28,7 @@ function  AllTest() {
     Test_Pull_Merge
     Test_Pull_Conflict
     Test_Pull_Push_InWorkingSubDirectory
+    Test_Pull_Push_TargetInWorkingDirectory
     EndOfTest
 }
 
@@ -71,19 +72,21 @@ function  Test_InWorkingDirectory() {
     git init  > /dev/null  2>&1
     git add "."  > /dev/null  2>&1
     git commit  -m "temporary"  > /dev/null  2>&1
+    AssertExist  ".git"
     echo  ""
     echo  "Test_InWorkingDirectory"
 
-    "../${NewCommitCommand}"  ||  TestError
+    "../${NewCommitCommand}"  &&  TestError
+    "../${NewCommitCommand}" --no-git  ||  TestError
     AssertExist  ".git"
     popd > /dev/null
 
-    AssertExist     "_testing/.commit/example.txt"
-    AssertExist     "_testing/.commit/.gitignore"
-    AssertNotExist  "_testing/.commit/build"
-    AssertNotExist  "_testing/.commit/build/out"
-    AssertReadOnly  "_testing/.commit/example.txt"
-    AssertReadOnly  "_testing/.commit/.gitignore"
+    AssertExist        "_testing/.commit/example.txt"
+    AssertExist        "_testing/.commit/.gitignore"
+    AssertNotExist     "_testing/.commit/build"
+    AssertNotExist     "_testing/.commit/build/out"
+    AssertNotReadOnly  "_testing/.commit/example.txt"
+    AssertNotReadOnly  "_testing/.commit/.gitignore"
     DeleteFolder  "_testing"
 }
 
@@ -103,10 +106,10 @@ function  Test_InWorkingSubDirectory() {
     echo  "Test_InWorkingSubDirectory"
 
     "../../${NewCommitCommand}"  ||  TestError
-    cd  ".."
-    AssertExist  ".git"
     popd > /dev/null
 
+    AssertExist     "_testing/.git"
+    AssertNotExist  "_testing/sub/.git"
     AssertExist     "_testing/sub/.commit/example.txt"
     AssertExist     "_testing/sub/.commit/.gitignore"
     AssertNotExist  "_testing/sub/.commit/build"
@@ -806,6 +809,106 @@ function  Test_Pull_Push_InWorkingSubDirectory() {
     DeleteFolder  "_testing"
 }
 
+function  Test_Pull_Push_TargetInWorkingDirectory() {
+    echo ""
+    echo "Test_Pull_Push_TargetInWorkingDirectory"
+
+    #// Set up
+    DeleteFolder  "_testing"
+
+    mkdir -p "_testing/_repository"
+    pushd  "_testing/_repository"  > /dev/null
+    git init  > /dev/null
+    AssertExist  ".git"
+    echo  ".commit"      > ".gitignore"
+    echo  ".commit_*"   >> ".gitignore"
+    echo  "_repository" >> ".gitignore"
+    echo  "a"  > "example.txt"
+    echo  "b" >> "example.txt"
+    echo  "c" >> "example.txt"
+    git add "."  > /dev/null
+    git commit -m "First commit."  > /dev/null
+    popd  > /dev/null
+    AssertExist  "_testing/_repository/example.txt"
+
+    pushd  "_testing"  > /dev/null
+    CopyFolder  "_repository"  "."
+    popd  > /dev/null
+    AssertExist  "_testing/example.txt"
+
+    #// Error of making new ".commit" folder, if ".git" folder exists
+    pushd  "_testing"  > /dev/null
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  &&  TestError
+    popd  > /dev/null
+    AssertNotExist  "_testing/.commit"
+
+    #// Make a ".commit" folder
+    pushd  "_testing"  > /dev/null
+    echo  "$ rm -rf .git"
+    rm -rf  ".git"
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+    popd  > /dev/null
+    AssertExist  "_testing/.commit"
+
+    #// Add a commit in reposiroty
+    pushd  "_testing/_repository"  > /dev/null
+    echo  "[_reporitory]$ git commit"
+    echo  "a"      > "example.txt"
+    echo  "b"     >> "example.txt"
+    echo  "c new" >> "example.txt"
+    git add "."  > /dev/null
+    git commit -m "Second commit."  > /dev/null
+    popd  > /dev/null
+
+    #// Make ".commit_new" folder
+    pushd  "_testing"  > /dev/null
+    echo  "$ edit"
+    echo  "a new"  > "example.txt"
+    echo  "b"     >> "example.txt"
+    echo  "c"     >> "example.txt"
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+    popd  > /dev/null
+    AssertExist  "_testing/.commit_new"
+
+    #// Pull command
+    pushd  "_testing"  > /dev/null
+    echo  "$ new-commit pull _repository"
+    "../${NewCommitCommand}" pull  "_repository"  ||  TestError
+    popd  > /dev/null
+    AssertContents  "_testing/.commit_before_pull/example.txt"  'a new\nb\nc\n'
+    AssertContents  "_testing/.commit_repository/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/example.txt"  'a new\nb\nc new\n'
+    AssertNotExist  "_testing/.commit_new"
+
+    #// Make ".commit" folder
+    pushd  "_testing"  > /dev/null
+    echo  "$ new-commit"
+    "../${NewCommitCommand}"  ||  TestError
+    popd  > /dev/null
+    AssertContents  "_testing/.commit_before_pull/example.txt"  'a new\nb\nc\n'
+    AssertContents  "_testing/.commit_repository/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/example.txt"  'a new\nb\nc new\n'
+    AssertContents  "_testing/.commit_new/example.txt"  'a new\nb\nc new\n'
+
+    #// Push command
+    pushd  "_testing"  > /dev/null
+    echo  "$ new-commit push _repository"
+    "../${NewCommitCommand}" push  "_repository"  ||  TestError
+    popd  > /dev/null
+    AssertNotExist  "_testing/.commit_before_pull"
+    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_new"
+
+    #// Check if the reporitory is not added a commit
+    local  result="$(cd _testing/_repository  &&  git diff)"
+    echo  "${result}" | grep "\-a"      > /dev/null  ||  TestError
+    echo  "${result}" | grep  "+a new"  > /dev/null  ||  TestError
+    DeleteFolder  "_testing"
+}
+
 function  AssertContents() {
     local  filePath="$1"
     local  expectedContents="$2"
@@ -1140,21 +1243,6 @@ function  Test_Error() {
     echo  "Passed Test_Error."
 }
 
-function  TestError() {
-    local  errorMessage="$1"
-    if [ "${errorMessage}" == "" ]; then
-        errorMessage="ERROR: a test error"
-    fi
-    if [ "${ErrorCountBeforeStart}" == "${NotInErrorTest}" ]; then
-
-        echo  "ERROR: ${errorMessage}"
-    fi
-    LastErrorMessage="${errorMessage}"
-    ErrorCount=$(( ${ErrorCount} + 1 ))
-}
-ErrorCount=0
-LastErrorMessage=""
-
 function  StartErrorTest() {
     ErrorCountBeforeStart=${ErrorCount}
 }
@@ -1182,6 +1270,21 @@ function  EndErrorTest() {
         ErrorCount="${errorCountBeforeStart}"
     fi
 }
+
+function  TestError() {
+    local  errorMessage="$1"
+    if [ "${errorMessage}" == "" ]; then
+        errorMessage="a test error"
+    fi
+    if [ "${ErrorCountBeforeStart}" == "${NotInErrorTest}" ]; then
+
+        echo  "ERROR: ${errorMessage}"
+    fi
+    LastErrorMessage="${errorMessage}"
+    ErrorCount=$(( ${ErrorCount} + 1 ))
+}
+ErrorCount=0
+LastErrorMessage=""
 
 function  EndOfTest() {
     echo  ""

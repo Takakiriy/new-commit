@@ -51,9 +51,6 @@ flowchart TD;
     c <-- 比較 --> d;
 ```
 
-`.commit` フォルダーや `.commit_new` フォルダーの中のファイルは、
-読み取り専用になります。
-
 
 ## 動作環境
 
@@ -94,12 +91,15 @@ flowchart TD;
 このとき、`.gitignore` に指定したファイルはコピーされません。
 この `.commit` フォルダーが、`git status` や `git diff` の比較対象に相当します。
 
+- Git でステージングされていない変更も `.commit` フォルダーに入ります
+- `.commit` フォルダーの中のファイルは、読み取り専用になります
+- Git の ワーキング フォルダー の外で `new-commit` コマンドを実行すると `.git` フォルダーも作られます。
+  `.git` フォルダーが無いと `new-commit push` コマンドや `new-commit pull` コマンドが使えなくなります
+- Git の ワーキング フォルダー のサブフォルダーで `new-commit` コマンドを実行すると `.git` フォルダーは作られませんが、
+  `new-commit push` コマンドや `new-commit pull` コマンドは使えます
 - `.commit` フォルダー は `.gitignore` に指定されているので、
     コミットの追加やブランチの変更などを行っても
     `git status` や `git diff` の比較対象に相当する内容は変化しません
-- `.commit` フォルダー は任意のフォルダーに移動することができます
-- git でステージングされていない変更も `.commit` フォルダーに入ります
-- `.commit` フォルダーの中のファイルは、読み取り専用になります
 
 コマンドの例:
 
@@ -122,7 +122,8 @@ flowchart TD;
 この動作が、`git status` や `git diff` に相当します。
 
 - 異なるファイルに関する表示内容は、`diff -qr` コマンドと同じです
-- git でステージングされていない変更も `.commit_new` フォルダーに入ります
+- 親の方向にある `.git` フォルダーに対する git コマンドでステージングされていない変更も
+  `.commit_new` フォルダーに入ります
 - `.commit_new` フォルダーの中のファイルは、読み取り専用になります
 
 コマンドの例:
@@ -148,6 +149,28 @@ flowchart TD;
     $ new-commit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
+
+
+## --no-git オプション
+
+`.git` フォルダーがあるフォルダーで `new-commit` コマンドを実行すると
+エラーになりますが、`--no-git` オプションを付けるとエラーになりません。
+
+- git でステージングされていない変更も `.commit` フォルダーに入ります
+- `.commit` フォルダーの中のファイルは、読み取り専用になりません
+- できた `.commit` フォルダー は任意のフォルダーに移動することができます
+- `new-commit --no-git` コマンドを実行しても `.git` フォルダーの内容は変わりません
+- `new-commit --no-git` コマンドを実行したフォルダーでは、
+  `new-commit push` コマンドや `new-commit pull` コマンドは使えません
+
+コマンドの例:
+
+    $ cd __WorkingDirectory__
+    $ new-commit --no-git
+    Created new ".commit" folder.
+    $ ls .commit
+    .gitignore
+    package.json
 
 
 ## pull コマンド

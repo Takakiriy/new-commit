@@ -51,8 +51,6 @@ flowchart TD;
     c <-- Compare --> d;
 ```
 
-Files in `.commit` and `.commit_new` folders are read-only.
-
 
 ## Environment
 
@@ -93,13 +91,16 @@ to the `.commit` folder directly under the current folder.
 At this time, files specified in `.gitignore` are not copied.
 This `.commit` folder is the comparison target of `git status` and `git diff`.
 
+- Unstaged changes in git also copy into the `.commit` folder
+- Files in `.commit` folders are turned on read-only attribute
+- Running the `new-commit` command outside of Git working folder, also creates a `.git` folder.
+    `new-commit push` and `new-commit pull` commands will not work without the `.git` folder
+- Running the `new-commit` command in a subfolder of Git working folder will not create
+    a `.git` folder, but the `new-commit push` and `new-commit pull` commands will work
 - The `.commit` folder is specified in `.gitignore`,
     so even if you add a commit or change the branch,
     the contents corresponding to the comparison target of
     `git status` or `git diff` will not change.
-- `.commit` folder can be moved to any folder
-- Unstaged changes in git also copy into the `.commit` folder
-- Files in `.commit` folders are turned on read-only attribute
 
 Sample commands:
 
@@ -122,7 +123,8 @@ And immediately lists filenames that differ from the `.commit` folder.
 This behavior corresponds to `git status` and `git diff`.
 
 - The output for different files is the same as the `diff -qr` command
-- Unstaged changes in git also copy into the `.commit_new` folder
+- Unstaged changes in git commands to the parent `.git` folder
+    are also copied into `.commit_new` folder
 - Files in `.commit_new` folders are turned on read-only attribute
 
 Sample commands:
@@ -149,6 +151,28 @@ the `.commit_new` folder will be deleted immediately.
     $ new-commit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
+
+
+## --no-git option
+
+Running the `new-commit` command in the folder with the `.git` folder
+will result in an error, but with the `--no-git` option it will not.
+
+- Unstaged changes in git also go into `.commit` folder
+- Files in `.commit` folders are not turned on read-only attribute
+- You can move created `.commit` folder to any folder
+- `new-commit --no-git` command does not change the contents in `.git` folder
+- `new-commit push` and `new-commit pull` commands cannot be used in the folder
+    where `new-commit --no-git` command was executed
+
+Sample commands:
+
+    $ cd __WorkingDirectory__
+    $ new-commit --no-git
+    Created new ".commit" folder.
+    $ ls .commit
+    .gitignore
+    package.json
 
 
 ## pull command
