@@ -16,6 +16,7 @@ function  AllTest() {
     Test_InWorkingSubDirectory
     Test_NoUpdate
     Test_NoModifiedConflict
+    Test_NoGitOption
     Test_Diff
     Test_Diff_InWorkingDirectory
     Test_Diff_InWorkingSubDirectory
@@ -178,6 +179,48 @@ function  Test_NoModifiedConflict() {  #// Base test is "Test_1"
     AssertExist     "_testing/.commit"
     AssertNotExist  "_testing/.commit_new"
 
+    DeleteFolder  "_testing"
+}
+
+function  Test_NoGitOption() {
+
+    #// .git folder
+    DeleteFolder  "_testing"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x" > "_testing/example.txt"
+    echo "build"      > "_testing/.gitignore"
+    echo ".commit"   >> "_testing/.gitignore"
+    echo ".commit_*" >> "_testing/.gitignore"
+
+    pushd "_testing" > /dev/null
+    git init  > /dev/null  2>&1
+    git add "."  > /dev/null  2>&1
+    git commit  -m "temporary"  > /dev/null  2>&1
+    AssertExist  ".git"
+    echo  ""
+    echo  "Test_NoGitOption"
+
+    "../${NewCommitCommand}" --no-git  ||  TestError
+    popd > /dev/null
+    AssertExist  "_testing/.commit"
+    AssertExist  "_testing/.commit/example.txt"
+
+    #// without .git folder
+    DeleteFolder  "_testing"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x" > "_testing/example.txt"
+    echo "build"      > "_testing/.gitignore"
+    echo ".commit"   >> "_testing/.gitignore"
+    echo ".commit_*" >> "_testing/.gitignore"
+    pushd "_testing" > /dev/null
+
+    "../${NewCommitCommand}" --no-git  ||  TestError
+    popd > /dev/null
+    AssertExist     "_testing/.commit"
+    AssertExist     "_testing/.commit/example.txt"
+    AssertNotExist  "_testing/.git"
     DeleteFolder  "_testing"
 }
 

@@ -49,6 +49,9 @@ function  NewCommit() {
             git add "."  > /dev/null  2>&1
             git commit  -m "new-commit) Created local working directory"  > /dev/null  2>&1
             echo  "Added .git folder and first commit."
+        else
+            git init  > /dev/null  2>&1
+            git add "."  > /dev/null  2>&1
         fi
         mkdir  "${outputFolderName}"
 
@@ -118,6 +121,10 @@ function  NewCommit() {
             echo  'Changes for .commit:'
             echoWithIndent  "${diff_output}"  "    "
         fi
+    fi
+
+    if [ "${gitWorkingRootPath}" == ""  -a  "${noGitOption}" == "${True}" ]; then
+        rm -rf  ".git"
     fi
 }
 
