@@ -35,7 +35,7 @@ function  NewCommit() {
     if [ ! -e ".commit" ]; then
         outputFolderName=".commit"
         if [ "${currentFolder}" == "${gitWorkingRootPath}"  -a  "${noGitOption}" == "${False}" ]; then
-            Error  "new-commit command cannot create new \".commit\" folder where \".git\" folder exists."
+            Error  "locommit command cannot create new \".commit\" folder where \".git\" folder exists."
         fi
     else
         outputFolderName=".commit_new"
@@ -47,7 +47,7 @@ function  NewCommit() {
         if [ "${noGitOption}" == "${False}" ]; then
             git init  > /dev/null  2>&1
             git add "."  > /dev/null  2>&1
-            git commit  -m "new-commit) Created local working directory"  > /dev/null  2>&1
+            git commit  -m "locommit) Created local working directory"  > /dev/null  2>&1
             echo  "Added .git folder and first commit."
         else
             git init  > /dev/null  2>&1
@@ -132,7 +132,7 @@ function  Push() {
     local  repositoryFolderPath=$( ResolvePath "$1" )
     repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
     if [ "${repositoryFolderPath}" == "" ]; then
-        Error  "No main folder  Command: new-commit push __RepositoryFolderPath__"
+        Error  "No main folder  Command: locommit push __RepositoryFolderPath__"
     fi
     AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
@@ -146,7 +146,7 @@ function  Push() {
         NewCommit > /dev/null
         if [ -e ".commit_new" ]; then
             rm -rf  ".commit_new"
-            Error  "push command requires .commit_new folder, if update file exists. Run new-commit command."
+            Error  "push command requires .commit_new folder, if update file exists. Run locommit command."
         fi
     fi
 
@@ -174,7 +174,7 @@ function  Pull() {
     local  repositoryFolderPath=$( ResolvePath "$1" )
     repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
     if [ "${repositoryFolderPath}" == "" ]; then
-        Error  "No main folder  Command: new-commit pull __RepositoryFolderPath__"
+        Error  "No main folder  Command: locommit pull __RepositoryFolderPath__"
     fi
     AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
@@ -268,7 +268,7 @@ function  Pull() {
         else
             git init  > /dev/null  ||  Error
             git add  "."
-            git commit  -m "new-commit pull) Created a common commit." > /dev/null  #// Ignore this command errors
+            git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
             currentBranch=$( git rev-parse --abbrev-ref HEAD )
             mkdir -p  "../.commit_repository"
             mv  ".git"  "../.commit_repository"            
@@ -278,7 +278,7 @@ function  Pull() {
         cd  "../.commit_repository"
         git checkout -b "__new-commit_commit_repository" > /dev/null 2>&1  ||  Error
         git add "." > /dev/null
-        git commit  -m "new-commit pull) commit_repository" > /dev/null  #// Ignore this command errors
+        git commit  -m "locommit pull) commit_repository" > /dev/null  #// Ignore this command errors
         local  oldCommitID=$( git rev-parse --short "${currentBranch}" )
         local  othersCommitID=$( git rev-parse --short __new-commit_commit_repository )
         mkdir -p "../.commit_temporary"
@@ -298,7 +298,7 @@ function  Pull() {
     #// destination: current folder
     if [ "${source}" == ".commit_new" ]; then
         git add "."
-        git commit  -m "new-commit pull) commit_before_pull" > /dev/null
+        git commit  -m "locommit pull) commit_before_pull" > /dev/null
     fi
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
 

@@ -2,7 +2,7 @@
 if [ "${_Dbg_DEBUGGER_LEVEL}" != "" ]; then
     cd  "test"
 fi
-NewCommitCommand="../bin/new-commit"
+LocommitCommand="../bin/locommit"
 
 function  AllTest() {
     Test_Error
@@ -45,7 +45,7 @@ function  Test_1() {
     echo "Test_1"
 
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"  ||  TestError
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
 
     AssertExist     "_testing/.commit/example.txt"
@@ -77,8 +77,8 @@ function  Test_InWorkingDirectory() {
     echo  ""
     echo  "Test_InWorkingDirectory"
 
-    "../${NewCommitCommand}"  &&  TestError
-    "../${NewCommitCommand}" --no-git  ||  TestError
+    "../${LocommitCommand}"  &&  TestError
+    "../${LocommitCommand}" --no-git  ||  TestError
     AssertExist  ".git"
     popd > /dev/null
 
@@ -106,7 +106,7 @@ function  Test_InWorkingSubDirectory() {
     echo  ""
     echo  "Test_InWorkingSubDirectory"
 
-    "../../${NewCommitCommand}"  ||  TestError
+    "../../${LocommitCommand}"  ||  TestError
     popd > /dev/null
 
     AssertExist     "_testing/.git"
@@ -135,7 +135,7 @@ function  Test_NoUpdate() {  #// Base test is "Test_1"
     echo "Test_NoUpdate"
 
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"  ||  TestError
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
 
     AssertNotExist  "_testing/.commit_new/"
@@ -166,15 +166,15 @@ function  Test_NoModifiedConflict() {  #// Base test is "Test_1"
 
     AssertNotExist  "_testing/.commit"
 
-    echo  "$ new-commit"
+    echo  "$ locommit"
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"  ||  TestError
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
     AssertExist  "_testing/.commit"
 
-    echo  "$ new-commit"
+    echo  "$ locommit"
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"  ||  TestError  #// 2nd execute
+    "../${LocommitCommand}"  ||  TestError  #// 2nd execute
     popd > /dev/null
     AssertExist     "_testing/.commit"
     AssertNotExist  "_testing/.commit_new"
@@ -201,7 +201,7 @@ function  Test_NoGitOption() {
     echo  ""
     echo  "Test_NoGitOption"
 
-    "../${NewCommitCommand}" --no-git  ||  TestError
+    "../${LocommitCommand}" --no-git  ||  TestError
     popd > /dev/null
     AssertExist  "_testing/.commit"
     AssertExist  "_testing/.commit/example.txt"
@@ -216,7 +216,7 @@ function  Test_NoGitOption() {
     echo ".commit_*" >> "_testing/.gitignore"
     pushd "_testing" > /dev/null
 
-    "../${NewCommitCommand}" --no-git  ||  TestError
+    "../${LocommitCommand}" --no-git  ||  TestError
     popd > /dev/null
     AssertExist     "_testing/.commit"
     AssertExist     "_testing/.commit/example.txt"
@@ -237,7 +237,7 @@ function  Test_Diff() {  #// Base test is "Test_1"
     echo "Test_Diff"
 
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"  ||  TestError
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
 
     AssertExist     "_testing/.commit/example.txt"
@@ -268,7 +268,7 @@ function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Te
     echo  ""
     echo  "Test_Diff_InWorkingDirectory"
 
-    "../${NewCommitCommand}"  ||  TestError
+    "../${LocommitCommand}"  ||  TestError
     AssertExist  ".git"
     popd > /dev/null
 
@@ -301,7 +301,7 @@ function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWor
     echo  ""
     echo  "Test_Diff_InWorkingSubDirectory"
 
-    "../../${NewCommitCommand}"  ||  TestError
+    "../../${LocommitCommand}"  ||  TestError
     cd  ".."
     AssertExist  ".git"
     popd > /dev/null
@@ -326,18 +326,18 @@ function  Test_Push_1() {
 
     pushd "_testing" > /dev/null
 
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
 
     echo "after" > "example.txt"
     echo "new" > "new X.txt"
     rm  "will_delete.txt"
 
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
 
-    echo  "$ new-commit push _repository"
-    "../${NewCommitCommand}" push "_repository"  ||  TestError
+    echo  "$ locommit push _repository"
+    "../${LocommitCommand}" push "_repository"  ||  TestError
 
     popd > /dev/null
 
@@ -373,13 +373,13 @@ function  Test_Push_NoCommitNewNoDiff() {
     echo "Test_Push_NoCommitNewNoDiff"
 
     pushd "_testing" > /dev/null
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     AssertExist     ".commit"
     AssertNotExist  ".commit_new"
 
-    echo  "$ new-commit push _repository"
-    "../${NewCommitCommand}" push "_repository"  ||  TestError
+    echo  "$ locommit push _repository"
+    "../${LocommitCommand}" push "_repository"  ||  TestError
     popd > /dev/null
 
     AssertExist        "_testing/_repository/example.txt"
@@ -395,15 +395,15 @@ function  Test_Push_NoCommitError() {
     echo "Test_Push_NoCommitError"
 
     pushd "_testing" > /dev/null
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
 
     rm  "example.txt"
     AssertExist     ".commit"
     AssertNotExist  ".commit_new"
 
-    echo  "$ new-commit push _repository"
-    "../${NewCommitCommand}" push "_repository"
+    echo  "$ locommit push _repository"
+    "../${LocommitCommand}" push "_repository"
     local  exitCode=$?
     popd > /dev/null
 
@@ -431,8 +431,8 @@ function  Test_Push_Null() {
 
     pushd "_testing" > /dev/null
 
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
     AssertExist     "_testing/.commit"
     AssertNotExist  "_testing/.commit_new"
@@ -443,14 +443,14 @@ function  Test_Push_Null() {
 
     pushd "_testing" > /dev/null
 
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
     AssertExist  "_testing/.commit_new"
 
-    echo  "$ new-commit push /dev/null"
+    echo  "$ locommit push /dev/null"
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}" push "/dev/null"
+    "../${LocommitCommand}" push "/dev/null"
     local  exitCode=$?
     popd > /dev/null
     if [ "${exitCode}" != "0" ]; then
@@ -490,11 +490,11 @@ function  Test_Pull_1() {
     #// pull command
     pushd "_testing" > /dev/null
 
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
 
-    echo  "$ new-commit pull _repository"
-    "../${NewCommitCommand}" pull "_repository"
+    echo  "$ locommit pull _repository"
+    "../${LocommitCommand}" pull "_repository"
     local  exitCode=$?
     popd > /dev/null
     if [ "${exitCode}" != "0" ]; then
@@ -508,15 +508,15 @@ function  Test_Pull_1() {
 
     #// push command
     pushd "_testing" > /dev/null
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
 
     AssertExist  "_testing/.commit_new"
 
     pushd "_testing" > /dev/null
-    echo  "$ new-commit push _repository"
-    "../${NewCommitCommand}" push "_repository"
+    echo  "$ locommit push _repository"
+    "../${LocommitCommand}" push "_repository"
     local  exitCode=$?
     popd > /dev/null
     if [ "${exitCode}" != "0" ]; then
@@ -560,9 +560,9 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
     popd > /dev/null
 
     #// pull command
-    echo  "$ new-commit"
+    echo  "$ locommit"
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"  ||  TestError
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
     AssertContents  "_testing/.commit/example.txt"  'a\nb\nc\n'
 
@@ -570,16 +570,16 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
     echo "b"     >> "_testing/example.txt"
     echo "c new" >> "_testing/example.txt"
 
-    echo  "$ new-commit"
+    echo  "$ locommit"
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}"  ||  TestError
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
     AssertContents  "_testing/.commit/example.txt"      'a\nb\nc\n'
     AssertContents  "_testing/.commit_new/example.txt"  'a\nb\nc new\n'
 
-    echo  "$ new-commit pull _repository"
+    echo  "$ locommit pull _repository"
     pushd "_testing" > /dev/null
-    "../${NewCommitCommand}" pull "_repository"
+    "../${LocommitCommand}" pull "_repository"
     local  exitCode=$?
     popd > /dev/null
     if [ "${exitCode}" != "0" ]; then
@@ -593,15 +593,15 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
 
     #// push command
     pushd "_testing" > /dev/null
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     popd > /dev/null
 
     AssertExist  "_testing/.commit_new"
 
     pushd "_testing" > /dev/null
-    echo  "$ new-commit push _repository"
-    "../${NewCommitCommand}" push "_repository"
+    echo  "$ locommit push _repository"
+    "../${LocommitCommand}" push "_repository"
     local  exitCode=$?
     popd > /dev/null
     if [ "${exitCode}" != "0" ]; then
@@ -647,15 +647,15 @@ function  Test_Pull_Merge() {
     #// pull command
         pushd "_testing" > /dev/null
 
-        echo  "$ new-commit"
-        "../${NewCommitCommand}"  ||  TestError
+        echo  "$ locommit"
+        "../${LocommitCommand}"  ||  TestError
 
         echo "a new" > "example.txt"
         echo "b"    >> "example.txt"
         echo "c"    >> "example.txt"
 
-        echo  "$ new-commit pull _repository"
-        "../${NewCommitCommand}" pull "_repository"
+        echo  "$ locommit pull _repository"
+        "../${LocommitCommand}" pull "_repository"
         local  exitCode=$?
         popd > /dev/null
         if [ "${exitCode}" != "0" ]; then
@@ -670,15 +670,15 @@ function  Test_Pull_Merge() {
 
     #// push command
         pushd "_testing" > /dev/null
-        echo  "$ new-commit"
-        "../${NewCommitCommand}"  ||  TestError
+        echo  "$ locommit"
+        "../${LocommitCommand}"  ||  TestError
         popd > /dev/null
 
         AssertExist  "_testing/.commit_new"
 
         pushd "_testing" > /dev/null
-        echo  "$ new-commit push _repository"
-        "../${NewCommitCommand}" push "_repository"
+        echo  "$ locommit push _repository"
+        "../${LocommitCommand}" push "_repository"
         local  exitCode=$?
         popd > /dev/null
         if [ "${exitCode}" != "0" ]; then
@@ -725,18 +725,18 @@ function  Test_Pull_Conflict() {
     #// pull command
         pushd "_testing" > /dev/null
 
-        echo  "$ new-commit"
-        "../${NewCommitCommand}"  ||  TestError
+        echo  "$ locommit"
+        "../${LocommitCommand}"  ||  TestError
 
         echo "a"             > "example.txt"
         echo "b"            >> "example.txt"
         echo "c conflicted" >> "example.txt"
 
-        echo  "$ new-commit"
-        "../${NewCommitCommand}"  ||  TestError
+        echo  "$ locommit"
+        "../${LocommitCommand}"  ||  TestError
 
-        echo  "$ new-commit pull _repository"
-        "../${NewCommitCommand}" pull "_repository"
+        echo  "$ locommit pull _repository"
+        "../${LocommitCommand}" pull "_repository"
         local  exitCode=$?
         popd > /dev/null
         if [ "${exitCode}" != "0" ]; then
@@ -758,10 +758,10 @@ function  Test_Pull_Conflict() {
         AssertExist     "_testing/.commit_repository"
         AssertNotExist  "_testing/.commit_new"
 
-    #// Still conflicted (new-commit command)
+    #// Still conflicted (locommit command)
         pushd "_testing" > /dev/null
-            echo  "$ new-commit"
-            "../${NewCommitCommand}"  ||  TestError
+            echo  "$ locommit"
+            "../${LocommitCommand}"  ||  TestError
         popd > /dev/null
 
         AssertContents  "_testing/example.txt"  'a\nb\n<<<<<<< HEAD\nc conflicted\n=======\nc new\n>>>>>>> __new-commit_commit_repository\n'
@@ -769,15 +769,15 @@ function  Test_Pull_Conflict() {
         AssertExist  "_testing/.commit_repository"
         AssertExist  "_testing/.commit_new"
 
-    #// Resolve conflicts (new-commit command)
+    #// Resolve conflicts (locommit command)
         pushd "_testing" > /dev/null
             echo "a"         > "example.txt"
             echo "b"        >> "example.txt"
             echo "c merged" >> "example.txt"
             echo  "Resolved."
 
-            echo  "$ new-commit"
-            "../${NewCommitCommand}"  ||  TestError
+            echo  "$ locommit"
+            "../${LocommitCommand}"  ||  TestError
         popd > /dev/null
 
         AssertContents  "_testing/example.txt"  'a\nb\nc merged\n'
@@ -787,8 +787,8 @@ function  Test_Pull_Conflict() {
  
     #// push command
         pushd "_testing" > /dev/null
-            echo  "$ new-commit push _repository"
-            "../${NewCommitCommand}" push "_repository" ||  TestError
+            echo  "$ locommit push _repository"
+            "../${LocommitCommand}" push "_repository" ||  TestError
         popd > /dev/null
 
         AssertContents  "_testing/_repository/example.txt"  'a\nb\nc merged\n'
@@ -828,12 +828,12 @@ function  Test_Pull_Push_InWorkingSubDirectory() {
         popd  > /dev/null
         popd  > /dev/null
 
-    #// new-commit command
+    #// locommit command
     pushd  "_testing/project"  > /dev/null
-    echo  "$ new-commit"
-    "../../${NewCommitCommand}"  ||  TestError
-    echo  "$ new-commit"  #// 2nd executing
-    "../../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../../${LocommitCommand}"  ||  TestError
+    echo  "$ locommit"  #// 2nd executing
+    "../../${LocommitCommand}"  ||  TestError
     popd  > /dev/null
     AssertExist     "_testing/project/.commit"
     AssertNotExist  "_testing/project/.commit_new"
@@ -843,8 +843,8 @@ function  Test_Pull_Push_InWorkingSubDirectory() {
     echo "r" > "_testing/repository/example.txt"
     pushd  "_testing/project"  > /dev/null
 
-    echo  "$ new-commit pull ../repository"
-    "../../${NewCommitCommand}" pull "../repository"  ||  TestError
+    echo  "$ locommit pull ../repository"
+    "../../${LocommitCommand}" pull "../repository"  ||  TestError
     popd  > /dev/null
     AssertContents  "_testing/project/.commit/example.txt"  '2\n'
     AssertContents  "_testing/project/.commit_before_pull/example.txt"  '2\n'
@@ -881,8 +881,8 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
 
     #// Error of making new ".commit" folder, if ".git" folder exists
     pushd  "_testing"  > /dev/null
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  &&  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  &&  TestError
     popd  > /dev/null
     AssertNotExist  "_testing/.commit"
 
@@ -890,8 +890,8 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     pushd  "_testing"  > /dev/null
     echo  "$ rm -rf .git"
     rm -rf  ".git"
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     popd  > /dev/null
     AssertExist  "_testing/.commit"
 
@@ -911,15 +911,15 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     echo  "a new"  > "example.txt"
     echo  "b"     >> "example.txt"
     echo  "c"     >> "example.txt"
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     popd  > /dev/null
     AssertExist  "_testing/.commit_new"
 
     #// Pull command
     pushd  "_testing"  > /dev/null
-    echo  "$ new-commit pull _repository"
-    "../${NewCommitCommand}" pull  "_repository"  ||  TestError
+    echo  "$ locommit pull _repository"
+    "../${LocommitCommand}" pull  "_repository"  ||  TestError
     popd  > /dev/null
     AssertContents  "_testing/.commit_before_pull/example.txt"  'a new\nb\nc\n'
     AssertContents  "_testing/.commit_repository/example.txt"  'a\nb\nc new\n'
@@ -928,8 +928,8 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
 
     #// Make ".commit" folder
     pushd  "_testing"  > /dev/null
-    echo  "$ new-commit"
-    "../${NewCommitCommand}"  ||  TestError
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
     popd  > /dev/null
     AssertContents  "_testing/.commit_before_pull/example.txt"  'a new\nb\nc\n'
     AssertContents  "_testing/.commit_repository/example.txt"  'a\nb\nc new\n'
@@ -938,8 +938,8 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
 
     #// Push command
     pushd  "_testing"  > /dev/null
-    echo  "$ new-commit push _repository"
-    "../${NewCommitCommand}" push  "_repository"  ||  TestError
+    echo  "$ locommit push _repository"
+    "../${LocommitCommand}" push  "_repository"  ||  TestError
     popd  > /dev/null
     AssertNotExist  "_testing/.commit_before_pull"
     AssertNotExist  "_testing/.commit_repository"

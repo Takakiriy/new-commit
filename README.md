@@ -1,8 +1,8 @@
-# new-commit shell script (.commit folder)
+# locommit shell script (.commit folder)
 
 ## Overview
 
-The `new-commit` command is the equivalent of `git status` and `git diff`
+The `locommit` command is the equivalent of `git status` and `git diff`
 that can be used outside the Git working directory
 (the folder containing the .git folder)
 or in subfolders of the Git working directory.
@@ -22,7 +22,7 @@ graph LR;
 
 ## Behavior
 
-First, `new-commit` command copies the files in the current folder
+First, `locommit` command copies the files in the current folder
 and its subfolders to the `.commit` folder directly under the current folder.
 At this time, files specified in `.gitignore` are not copied.
 This `.commit` folder is as the comparison target of `git status` and `git diff`.
@@ -63,15 +63,15 @@ flowchart TD;
 
 - It requires Git installed to work.
     Make sure you can use git commands from bash or zsh.
-- Copy the `new-commit` file in `bin` folder
+- Copy the `locommit` file in `bin` folder
     to a folder in your bash path.
 
 
 ## Usage
 
-### new-commit command
+### locommit command
 
-`new-commit` command of copying using .gitignore
+`locommit` command of copying using .gitignore
 takes no parameters.
 The movement changes depending on the situation.
 
@@ -93,10 +93,10 @@ This `.commit` folder is the comparison target of `git status` and `git diff`.
 
 - Unstaged changes in git also copy into the `.commit` folder
 - Files in `.commit` folders are turned on read-only attribute
-- Running the `new-commit` command outside of Git working folder, also creates a `.git` folder.
-    `new-commit push` and `new-commit pull` commands will not work without the `.git` folder
-- Running the `new-commit` command in a subfolder of Git working folder will not create
-    a `.git` folder, but the `new-commit push` and `new-commit pull` commands will work
+- Running the `locommit` command outside of Git working folder, also creates a `.git` folder.
+    `locommit push` and `locommit pull` commands will not work without the `.git` folder
+- Running the `locommit` command in a subfolder of Git working folder will not create
+    a `.git` folder, but the `locommit push` and `locommit pull` commands will work
 - The `.commit` folder is specified in `.gitignore`,
     so even if you add a commit or change the branch,
     the contents corresponding to the comparison target of
@@ -105,7 +105,7 @@ This `.commit` folder is the comparison target of `git status` and `git diff`.
 Sample commands:
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Added .git folder and first commit.
     Created new ".commit" folder.
     This will be treated as base commit.
@@ -130,7 +130,7 @@ This behavior corresponds to `git status` and `git diff`.
 Sample commands:
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Created new ".commit_new" folder.
     Changes for .commit:
         Files .commit/package.json and .commit_new/package.json differ
@@ -148,27 +148,27 @@ the `.commit_new` folder are the same,
 the `.commit_new` folder will be deleted immediately.
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
 
 
 ## --no-git option
 
-Running the `new-commit` command in the folder with the `.git` folder
+Running the `locommit` command in the folder with the `.git` folder
 will result in an error, but with the `--no-git` option it will not.
 
 - Unstaged changes in git also go into `.commit` folder
 - Files in `.commit` folders are not turned on read-only attribute
 - You can move created `.commit` folder to any folder
-- `new-commit --no-git` command does not change the contents in `.git` folder
-- `new-commit push` and `new-commit pull` commands cannot be used in the folder
-    where `new-commit --no-git` command was executed
+- `locommit --no-git` command does not change the contents in `.git` folder
+- `locommit push` and `locommit pull` commands cannot be used in the folder
+    where `locommit --no-git` command was executed
 
 Sample commands:
 
     $ cd __WorkingDirectory__
-    $ new-commit --no-git
+    $ locommit --no-git
     Created new ".commit" folder.
     $ ls .commit
     .gitignore
@@ -185,13 +185,13 @@ graph RL;
 The pull command merges the repository folder contents into the current folder.
 
     cd __WorkingDirectory__
-    new-commit pull __RepositoryFolderPath__
+    locommit pull __RepositoryFolderPath__
 
 The pull command merges the contents of
 `__RepositoryFolderPath__` folder into the current folder.
 
     $ cd __WorkingDirectory__
-    $ new-commit pull _repository
+    $ locommit pull _repository
     Created ".commit_repository" folder
     Renamed ".commit_new" folder to ".commit_before_pull" folder
     Pull from ".commit_repository" folder
@@ -213,7 +213,7 @@ The push command will also delete `.commit_before_pull` folder and `.commit_repo
 The pull command can have conflicts.
 
     $ cd __WorkingDirectory__
-    $ new-commit pull _repository
+    $ locommit pull _repository
     Created ".commit_repository" folder
     Renamed ".commit_new" folder to ".commit_before_pull" folder
     Pull from ".commit_repository" folder
@@ -222,11 +222,11 @@ The pull command can have conflicts.
     Automatic merge failed; fix conflicts and then commit the result.
         Files .commit/example.txt and .commit_repository/example.txt differ
 
-The new-commit command will show CONFLICT(s) warning
+The locommit command will show CONFLICT(s) warning
 until conflicts are resolved.
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Created new ".commit_new" folder.
     Changes for .commit:
         Files .commit/example.txt and .commit_new/example.txt differ
@@ -251,7 +251,7 @@ by editing other than the current folder
 will be overwritten and lost by push command.
 
     cd __WorkingDirectory__
-    new-commit push __RepositoryFolderPath__
+    locommit push __RepositoryFolderPath__
 
 Push command copies files in `.commit_new` folder to `__RepositoryFolderPath__`
 and turn off the read-only attribute of the file.

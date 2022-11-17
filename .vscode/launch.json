@@ -5,7 +5,7 @@
             "name": "Test",
             "type": "bashdb",
             "request": "launch",
-            "program": "${workspaceFolder}/test/test-new-commit",
+            "program": "${workspaceFolder}/test/test-locommit",
             "cwd": "${workspaceFolder}",
             "args": []
         },
@@ -13,7 +13,7 @@
             "name": "Child process",
             "type": "bashdb",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/new-commit",
+            "program": "${workspaceFolder}/bin/locommit",
             "cwd": "${workspaceFolder}/test/_testing",
             "args": ["pull", "_repository"]
         }

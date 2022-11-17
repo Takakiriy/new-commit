@@ -1,8 +1,8 @@
-# new-commit シェルスクリプト (.commit フォルダー)
+# locommit シェルスクリプト (.commit フォルダー)
 
 ## 概要
 
-`new-commit` コマンドは、
+`locommit` コマンドは、
 Git の ワーキング ディレクトリ（.git フォルダーがあるフォルダー）の外でも
 Git の ワーキング ディレクトリ のサブフォルダーでも使える
 `git status` や `git diff` に相当するコマンドです。
@@ -63,16 +63,16 @@ flowchart TD;
 
 - 動作には Git のインストールが必要です。
     bash や zsh から git コマンドが使えるようにしてください。
-- `bin` フォルダーにある `new-commit` ファイルを
+- `bin` フォルダーにある `locommit` ファイルを
     bash のパスの通ったフォルダーにコピーしてください。
 
 
 ## 使い方
 
-### new-commit コマンド
+### locommit コマンド
 
 .gitignore を踏まえたコピーをするときの
-`new-commit` コマンドは、パラメーターを指定しません。
+`locommit` コマンドは、パラメーターを指定しません。
 状況に応じて動きが変わります。
 
 なお、`.gitignore` ファイルには、`.commit` や
@@ -93,10 +93,10 @@ flowchart TD;
 
 - Git でステージングされていない変更も `.commit` フォルダーに入ります
 - `.commit` フォルダーの中のファイルは、読み取り専用になります
-- Git の ワーキング フォルダー の外で `new-commit` コマンドを実行すると `.git` フォルダーも作られます。
-  `.git` フォルダーが無いと `new-commit push` コマンドや `new-commit pull` コマンドが使えなくなります
-- Git の ワーキング フォルダー のサブフォルダーで `new-commit` コマンドを実行すると `.git` フォルダーは作られませんが、
-  `new-commit push` コマンドや `new-commit pull` コマンドは使えます
+- Git の ワーキング フォルダー の外で `locommit` コマンドを実行すると `.git` フォルダーも作られます。
+  `.git` フォルダーが無いと `locommit push` コマンドや `locommit pull` コマンドが使えなくなります
+- Git の ワーキング フォルダー のサブフォルダーで `locommit` コマンドを実行すると `.git` フォルダーは作られませんが、
+  `locommit push` コマンドや `locommit pull` コマンドは使えます
 - `.commit` フォルダー は `.gitignore` に指定されているので、
     コミットの追加やブランチの変更などを行っても
     `git status` や `git diff` の比較対象に相当する内容は変化しません
@@ -104,7 +104,7 @@ flowchart TD;
 コマンドの例:
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Added .git folder and first commit.
     Created new ".commit" folder.
     This will be treated as base commit.
@@ -129,7 +129,7 @@ flowchart TD;
 コマンドの例:
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Created new ".commit_new" folder.
     Changes for .commit:
         Files .commit/package.json and .commit_new/package.json differ
@@ -146,27 +146,27 @@ flowchart TD;
 同じ場合、すぐに `.commit_new` フォルダーが削除されます。
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Deleted ".commit_new" folder.
     SAME as ".commit" folder.
 
 
 ## --no-git オプション
 
-`.git` フォルダーがあるフォルダーで `new-commit` コマンドを実行すると
+`.git` フォルダーがあるフォルダーで `locommit` コマンドを実行すると
 エラーになりますが、`--no-git` オプションを付けるとエラーになりません。
 
 - git でステージングされていない変更も `.commit` フォルダーに入ります
 - `.commit` フォルダーの中のファイルは、読み取り専用になりません
 - できた `.commit` フォルダー は任意のフォルダーに移動することができます
-- `new-commit --no-git` コマンドを実行しても `.git` フォルダーの内容は変わりません
-- `new-commit --no-git` コマンドを実行したフォルダーでは、
-  `new-commit push` コマンドや `new-commit pull` コマンドは使えません
+- `locommit --no-git` コマンドを実行しても `.git` フォルダーの内容は変わりません
+- `locommit --no-git` コマンドを実行したフォルダーでは、
+  `locommit push` コマンドや `locommit pull` コマンドは使えません
 
 コマンドの例:
 
     $ cd __WorkingDirectory__
-    $ new-commit --no-git
+    $ locommit --no-git
     Created new ".commit" folder.
     $ ls .commit
     .gitignore
@@ -183,13 +183,13 @@ graph RL;
 pull コマンドは、リポジトリ フォルダー の内容を カレント フォルダー に入力するマージをします。
 
     cd __WorkingDirectory__
-    new-commit pull __RepositoryFolderPath__
+    locommit pull __RepositoryFolderPath__
 
 pull コマンドを実行すると `__RepositoryFolderPath__` フォルダーの内容を 
 カレント フォルダー にマージします。
 
     $ cd __WorkingDirectory__
-    $ new-commit pull _repository
+    $ locommit pull _repository
     Created ".commit_repository" folder
     Renamed ".commit_new" folder to ".commit_before_pull" folder
     Pull from ".commit_repository" folder
@@ -212,7 +212,7 @@ push コマンドを使うと、通常の push コマンドの動作の他に、
 pull コマンドは、コンフリクトが起きることがあります。
 
     $ cd __WorkingDirectory__
-    $ new-commit pull _repository
+    $ locommit pull _repository
     Created ".commit_repository" folder
     Renamed ".commit_new" folder to ".commit_before_pull" folder
     Pull from ".commit_repository" folder
@@ -221,10 +221,10 @@ pull コマンドは、コンフリクトが起きることがあります。
     Automatic merge failed; fix conflicts and then commit the result.
         Files .commit/example.txt and .commit_repository/example.txt differ
 
-コンフリクトが解決するまで、new-commit コマンドは CONFLICT があることを表示します。
+コンフリクトが解決するまで、locommit コマンドは CONFLICT があることを表示します。
 
     $ cd __WorkingDirectory__
-    $ new-commit
+    $ locommit
     Created new ".commit_new" folder.
     Changes for .commit:
         Files .commit/example.txt and .commit_new/example.txt differ
@@ -248,7 +248,7 @@ push コマンドは、カレント フォルダー の内容を リポジトリ
 push コマンドによって上書きされて無くなってしまうことに注意してください。
 
     cd __WorkingDirectory__
-    new-commit push __RepositoryFolderPath__
+    locommit push __RepositoryFolderPath__
 
 push コマンドを実行すると `.commit_new` フォルダーの内容を `__RepositoryFolderPath__`
 にコピーして、ファイルの読み取り専用属性をオフにします。
