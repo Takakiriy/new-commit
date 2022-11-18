@@ -6,7 +6,7 @@
             "type": "bashdb",
             "request": "launch",
             "program": "${workspaceFolder}/test/test-locommit",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/test",
             "args": []
         },
         {
@@ -15,7 +15,7 @@
             "request": "launch",
             "program": "${workspaceFolder}/bin/locommit",
             "cwd": "${workspaceFolder}/test/_testing",
-            "args": ["pull", "_repository"]
+            "args": []
         }
     ]
 }

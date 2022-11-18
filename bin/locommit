@@ -30,8 +30,9 @@ function  NewCommit() {
         Error  "Unknown option \"${option}\""
     fi
     local  currentFolder="${PWD}"
-    local  gitWorkingRootPath="$( GetGitWorkingRootPath )"
+    local  gitWorkingRootPath="$( GetGitWorkingRootPath  || echo "(ERROR)" )"
     local  outputFolderName
+    ErrorIfLastIs  "${gitWorkingRootPath}"  "(ERROR)"
     if [ ! -e ".commit" ]; then
         outputFolderName=".commit"
         if [ "${currentFolder}" == "${gitWorkingRootPath}"  -a  "${noGitOption}" == "${False}" ]; then
@@ -45,12 +46,16 @@ function  NewCommit() {
     if [ "${gitWorkingRootPath}" == "" ]; then
         rm -rf  "${outputFolderName}"
         if [ "${noGitOption}" == "${False}" ]; then
-            git init  > /dev/null  2>&1
+            git init ${GitInitOption}  > /dev/null  2>&1
+            git config --local user.email "${LocommitEMail}"
+            git config --local user.name  "${LocommitUser}"
             git add "."  > /dev/null  2>&1
             git commit  -m "locommit) Created local working directory"  > /dev/null  2>&1
             echo  "Added .git folder and first commit."
         else
-            git init  > /dev/null  2>&1
+            git init ${GitInitOption}  > /dev/null  2>&1
+            git config --local user.email "${LocommitEMail}"
+            git config --local user.name  "${LocommitUser}"
             git add "."  > /dev/null  2>&1
         fi
         mkdir  "${outputFolderName}"
@@ -61,7 +66,9 @@ function  NewCommit() {
         if [ "${currentFolder}" == "${gitWorkingRootPath}" ]; then
             mkdir -p  "${outputFolderName}"
             mv  ".git"  "${outputFolderName}/.commit_.git"
-            git init  > /dev/null
+            git init ${GitInitOption}  > /dev/null
+            git config --local user.email "${LocommitEMail}"
+            git config --local user.name  "${LocommitUser}"
             git add  "."  #// checkout new contents
 
             git checkout-index -a -f --prefix="${outputFolderName}/"
@@ -73,7 +80,9 @@ function  NewCommit() {
                 gitIgnoreExists="${False}"
                 cat  "${gitWorkingRootPath}/.gitignore"  |  grep -v  "^/"  >  ".gitignore"
             fi
-            git init  > /dev/null
+            git init ${GitInitOption}  > /dev/null
+            git config --local user.email "${LocommitEMail}"
+            git config --local user.name  "${LocommitUser}"
             git add  "."
 
             git checkout-index -a -f --prefix="${outputFolderName}/"
@@ -94,8 +103,9 @@ function  NewCommit() {
     #// Show conflict file names
     pushd  "${outputFolderName}" > /dev/null
 
-    local  conflictOutput=$( grep -rn  "^<<<<<<<"  "."  |  sed  "s/\\(:[0-9][0-9]*:\\)\\([^ ]\\)/\\1 \\2/" )
+    local  conflictOutput=$( grep -rn  "^<<<<<<<"  "."  |  sed  "s/\\(:[0-9][0-9]*:\\)\\([^ ]\\)/\\1 \\2/"  || echo "(ERROR)" )
     popd > /dev/null
+    ErrorIfLastIs  "${conflictOutput}"  "(ERROR)"
     if [ "${conflictOutput}" != "" ]; then
         echo  "CONFLICT:"
         echoWithIndent  "${conflictOutput}"  "    "
@@ -130,7 +140,8 @@ function  NewCommit() {
 
 function  Push() {
     local  repositoryFolderPath=$( ResolvePath "$1" )
-    repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
+    repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
+    ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
     if [ "${repositoryFolderPath}" == "" ]; then
         Error  "No main folder  Command: locommit push __RepositoryFolderPath__"
     fi
@@ -171,8 +182,10 @@ function  Push() {
 }
 
 function  Pull() {
-    local  repositoryFolderPath=$( ResolvePath "$1" )
-    repositoryFolderPath="$(CutLastOf "${repositoryFolderPath}" "/")"
+    local  repositoryFolderPath_=$( ResolvePath "$1"  || echo "(ERROR)" )
+    local  repositoryFolderPath="$( CutLastOf "${repositoryFolderPath_}" "/"  || echo "(ERROR)" )"
+    ErrorIfLastIs  "${repositoryFolderPath_}"  "(ERROR)"
+    ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
     if [ "${repositoryFolderPath}" == "" ]; then
         Error  "No main folder  Command: locommit pull __RepositoryFolderPath__"
     fi
@@ -240,7 +253,8 @@ function  Pull() {
 
     #// Make a ".git" folder that has "commit_reposiroty" branch
     echo  "Pull from \".commit_repository\" folder"
-    local  currentBranch=$( git rev-parse --abbrev-ref HEAD )
+    local  currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
+    ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
 
     #// Check ".commit" folder
     pushd  ".commit" > /dev/null
@@ -253,7 +267,7 @@ function  Pull() {
             if [ "${clean}" == "${False}" ]; then
                 git add "."
                 git commit -m "Reverted to .commit contents."  > /dev/null
-                echo  "Added a commit to revert to .commit contents."
+                echo  "Added a commit that reverted to .commit contents."
                 if [ "$(git status --short)" != "" ]; then
                     mv  ".git"  ".."
                     popd  > /dev/null
@@ -266,21 +280,31 @@ function  Pull() {
                 cp -Rap  ".git/{}"  "../.commit_repository/.git"
             mv  ".git"  ".."
         else
-            git init  > /dev/null  ||  Error
+            git init ${GitInitOption}  > /dev/null  ||  Error
+            git config --local user.email "${LocommitEMail}"
+            git config --local user.name  "${LocommitUser}"
             git add  "."
             git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
-            currentBranch=$( git rev-parse --abbrev-ref HEAD )
+            currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
+            ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
             mkdir -p  "../.commit_repository"
             mv  ".git"  "../.commit_repository"            
         fi
 
     #// Make the repository branch
         cd  "../.commit_repository"
-        git checkout -b "__new-commit_commit_repository" > /dev/null 2>&1  ||  Error
+        local  reposirotyBranchExists="${False}"
+        git branch | grep "__locommit_commit_repository" > /dev/null 2>&1  &&  reposirotyBranchExists="${True}"
+        if [ "${reposirotyBranchExists}" == "${True}" ]; then
+            git branch -D "__locommit_commit_repository" > /dev/null 2>&1  ||  Error
+        fi
+        git checkout -b "__locommit_commit_repository" > /dev/null 2>&1  ||  Error
         git add "." > /dev/null
         git commit  -m "locommit pull) commit_repository" > /dev/null  #// Ignore this command errors
-        local  oldCommitID=$( git rev-parse --short "${currentBranch}" )
-        local  othersCommitID=$( git rev-parse --short __new-commit_commit_repository )
+        local  oldCommitID=$( git rev-parse --short "${currentBranch}"  || echo "(ERROR)" )
+        local  othersCommitID=$( git rev-parse --short __locommit_commit_repository  || echo "(ERROR)" )
+        ErrorIfLastIs  "${oldCommitID}"  "(ERROR)"
+        ErrorIfLastIs  "${othersCommitID}"  "(ERROR)"
         mkdir -p "../.commit_temporary"
         mv  ".git"  "../.commit_temporary"
 
@@ -302,11 +326,12 @@ function  Pull() {
     fi
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
 
-        git merge  "__new-commit_commit_repository" --no-edit  > /dev/null
+        git merge  "__locommit_commit_repository" --no-edit  > /dev/null
     fi
     if [ "${parentDotGit}" == "${True}" ]; then
         rm -rf  ".git"
     fi
+    git branch -D  "__locommit_commit_repository"
 
     #// Restore .git folder and stage before pull files
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
@@ -320,6 +345,7 @@ function  Pull() {
 
         #// Diff
         local  diff_output="$( diff -qr  ".commit"  ".commit_repository" )"
+        ErrorIfLastIs  "${diff_output}"  "(ERROR)"
         echoWithIndent  "${diff_output}"  "    "
     else
         echo  'Renamed \".commit_before_pull\" folder to \".commit_new\" folder'
@@ -347,7 +373,8 @@ function  echoWithIndent() {
 function  ResolvePath() {
     local  path_="$1"
 
-    path_="$( echo "${path_}" | sed -e 's/\\/\//g' | sed -e 's/^C:/c:/' )"  #// replace to / and c:
+    path_="$( echo "${path_}" | sed -e 's/\\/\//g' | sed -e 's/^C:/c:/'  || echo "(ERROR)" )"  #// replace to / and c:
+    ErrorIfLastIs  "${path_}"  "(ERROR)"
 
     if [ "${mnt_c}" == "" ]; then
         export  mnt_c="/mnt/c";  if [ ! -e "/mnt/c" ]; then  export  mnt_c="c:"  ;fi
@@ -379,7 +406,8 @@ function  GetRelativePath() {
     local  fullPath="$1"
     local  basePath="$2"
 
-    local  relativePath=$( echo "$fullPath" | sed -e "s%^${basePath}/%%" )
+    local  relativePath=$( echo "$fullPath" | sed -e "s%^${basePath}/%%"  || echo "(ERROR)" )
+    ErrorIfLastIs  "${relativePath}"  "(ERROR)"
     echo  "${relativePath}"
 }
 
@@ -388,8 +416,10 @@ function  CopyFolder() {
     local  destination="$2"
     local  ignoreDotGit="$3"  #// ${True}, ${False}(default)
     local  excludeOption="--exclude=./.git"
-    source="$( CutLastOf  "${source}"  "/" )"
-    destination="$( CutLastOf  "${destination}"  "/" )"
+    source="$( CutLastOf  "${source}"  "/"  || echo "(ERROR)" )"
+    destination="$( CutLastOf  "${destination}"  "/"  || echo "(ERROR)" )"
+    ErrorIfLastIs  "${source}"  "(ERROR)"
+    ErrorIfLastIs  "${destination}"  "(ERROR)"
     if [ "${ignoreDotGit}" != ""  -a  "${ignoreDotGit}" != "${excludeOption}" ]; then
         Error  "Bad option: ${ignoreDotGit}"
         return  "${False}"
@@ -414,6 +444,45 @@ function  CutLastOf() {
     else
         echo  "${wholeString}"
     fi
+}
+
+function  gitInitOption() {
+    if [ "$( LessThanVersion "$(git --version)" "2.31.1")" == "${True}" ]; then
+        echo  ""
+    else
+        echo  "-bmain"  #// "-b main" occurs an error in bash debug
+    fi
+}
+
+# LessThanVersion
+#     if [ "$( LessThanVersion "$(git --version)" "2.31.1")" == "${True}" ]; then
+function  LessThanVersion() {
+    local  textContainsVersionA="$1"
+    local  textContainsVersionB="$2"
+    local  isGoodFormat="${True}"
+    echo "${textContainsVersionA}" | grep -e "[0-9]\+\.[0-9]\+\.[0-9]\+" > /dev/null  ||  isGoodFormat="${False}"
+    echo "${textContainsVersionB}" | grep -e "[0-9]\+\.[0-9]\+\.[0-9]\+" > /dev/null  ||  isGoodFormat="${False}"
+    if [ "${isGoodFormat}" == "${False}" ]; then
+        Error  "\"${textContainsVersionA}\" or \"${textContainsVersionB}\" is not semantic version."
+    fi
+
+    local  numbersA=( $( echo "${textContainsVersionA}" | grep -o -e "[0-9]\+" ) )
+    local  numbersB=( $( echo "${textContainsVersionB}" | grep -o -e "[0-9]\+" ) )
+    if [ "${numbersA[0]}" -lt "${numbersB[0]}" ]; then
+        echo "${True}"
+        return
+    elif [ "${numbersA[0]}" == "${numbersB[0]}" ]; then
+        if [ "${numbersA[1]}" -lt "${numbersB[1]}" ]; then
+            echo "${True}"
+            return
+        elif [ "${numbersA[1]}" == "${numbersB[1]}" ]; then
+            if [ "${numbersA[2]}" -lt "${numbersB[2]}" ]; then
+                echo "${True}"
+                return
+            fi
+        fi
+    fi
+    echo "${False}"
 }
 
 function  AssertExist() {
@@ -442,13 +511,31 @@ function  AssertInstalled() {
     fi
 }
 
+# ErrorIfLastIs
+#     Error check in $( )
+#     variable="$( command  || echo "(ERROR)" )"
+#     ErrorIfLastIs  "${output}"  "(ERROR)"
+function  ErrorIfLastIs() {
+    local  output="$1"
+    local  tag="$2"
+
+    local  last="${output:${#output}-${#tag}:${#tag}}"
+
+    if [ "${last}" == "${tag}" ]; then
+        exit  2
+    fi
+}
+
 function  Error() {
     local  errorMessage="$1"
-    echo  "ERROR: ${errorMessage}"
+    echo  "ERROR: ${errorMessage}" >&2
     exit  2
 }
 
 True=0
 False=1
+GitInitOption=$(gitInitOption) 
+LocommitEMail="locommit@example.com"
+LocommitUser="locommit"
 
 Main  "$@"
