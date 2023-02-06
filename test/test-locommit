@@ -29,6 +29,7 @@ function  AllTest() {
     Test_Pull_Conflict
     Test_Pull_Push_InWorkingSubDirectory
     Test_Pull_Push_TargetInWorkingDirectory
+
     EndOfTest
 }
 
@@ -372,6 +373,11 @@ function  Test_Push_1() {
     AssertNotReadOnly  "_testing/_repository/example.txt"
     AssertNotReadOnly  "_testing/_repository/new X.txt"
     AssertNotReadOnly  "_testing/_repository/.gitignore"
+
+    local  gitStatus="$(cd _testing  &&  GitStatusCurrentFolder)"
+    if [ "${gitStatus}" != "?? ./" ]; then  #// Case of parent .git does not check any status.
+        if [ "${gitStatus}" != "" ]; then  TestError;  fi
+    fi
     DeleteFolder  "_testing"
 }
 
@@ -1179,6 +1185,22 @@ function  gitInitOption() {
     fi
 }
 
+function  GitStatusCurrentFolder() {
+
+    local  gitStatus="$( git status --short )"
+    local  gitStatusCurrent=""
+    local  oldIFS="$IFS"
+    IFS=$'\n'
+    lines=( ${gitStatus} )
+    IFS="$oldIFS"
+    for  gitState  in "${lines[@]}"; do
+
+        if [ "${gitState:3:3}" != "../" ]; then
+            echo  "${gitState}"
+        fi
+    done
+}
+
 function  Test_LessThanVersion() {
     if [ "$( LessThanVersion "0.0.0" "0.0.0" )" != "${False}" ]; then  TestError  ;fi
     if [ "$( LessThanVersion "0.0.0" "0.0.1" )" != "${True}"  ]; then  TestError  ;fi
@@ -1489,6 +1511,26 @@ function  EndOfTest() {
             echo  "InGitWorking = False.  Also, you must test \"InGitWorking = True\"."
         fi
         echo  "Pass."
+    fi
+}
+
+#// pp "$config"
+#// pp "$config" config
+#// $( pp "$config" >&2 )
+function  pp() {
+    local  value="$1"
+    local  variableName="$2"
+    if [ "${variableName}" != "" ]; then  variableName=" ${variableName} "  ;fi
+    local  oldIFS="$IFS"
+    IFS=$'\n'
+    local  valueLines=( ${value} )
+    IFS="$oldIFS"
+
+    if [ "${#valueLines[@]}" == 1  -o  "${#valueLines[@]}" == 0 ]; then
+        echo  "@@@${variableName}= \"${value}\" ---------------------------"
+    else
+        echo  "@@@${variableName}---------------------------"
+        echo  "\"${value}\""
     fi
 }
 

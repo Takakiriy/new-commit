@@ -179,6 +179,14 @@ function  Push() {
     fi
     rm -rf ".commit_before_pull"
     rm -rf ".commit_repository"
+
+    #// git commit
+    if [ -e ".git" ]; then
+        if [ "$(git status --short)" != "" ]; then
+            git add "."
+            git commit  -m "locommit push) Updated." > /dev/null
+        fi
+    fi
 }
 
 function  Pull() {
@@ -314,7 +322,8 @@ function  Pull() {
         rm -rf  "../.git"
         mv  ".git"  ".."
         cd  ".."
-        rm -rf  ".commit_temporary"
+        mv  ".commit_temporary"  ".commit_temporary_deleting"
+        rm -rf  ".commit_temporary_deleting"  #// This command is sometimes rejected because device or resource busy
     popd > /dev/null
 
     #// Merge
@@ -330,8 +339,9 @@ function  Pull() {
     fi
     if [ "${parentDotGit}" == "${True}" ]; then
         rm -rf  ".git"
+    else
+        git branch -D  "__locommit_commit_repository"  > /dev/null
     fi
-    git branch -D  "__locommit_commit_repository"
 
     #// Restore .git folder and stage before pull files
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
@@ -346,6 +356,7 @@ function  Pull() {
         #// Diff
         local  diff_output="$( diff -qr  ".commit"  ".commit_repository" )"
         ErrorIfLastIs  "${diff_output}"  "(ERROR)"
+        echo  "Updated files by this merge from others:"
         echoWithIndent  "${diff_output}"  "    "
     else
         echo  'Renamed \".commit_before_pull\" folder to \".commit_new\" folder'
