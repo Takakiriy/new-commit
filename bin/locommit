@@ -539,8 +539,11 @@ function  ErrorIfLastIs() {
 
 function  Error() {
     local  errorMessage="$1"
+    local  exitCode="$2"
+    if [ "${exitCode}" == "" ]; then  exitCode=2  ;fi
+
     echo  "ERROR: ${errorMessage}" >&2
-    exit  2
+    exit  "${exitCode}"
 }
 
 True=0
