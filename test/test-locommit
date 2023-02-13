@@ -23,6 +23,7 @@ function  AllTest() {
     Test_Push_NoCommitNewNoDiff
     Test_Push_NoCommitError
     Test_Push_Null
+    Test_Push_SameOrParentFolderError
     Test_Pull_1
     Test_Pull_NoInput
     Test_Pull_Merge
@@ -475,6 +476,48 @@ function  Test_Push_Null() {
     AssertNotExist  "_testing/.commit_new"
     AssertExist     "_testing/.commit"
     AssertContents  "_testing/.commit/example.txt"  'a new\nb\nc\n'
+    DeleteFolder  "_testing"
+}
+
+function  Test_Push_SameOrParentFolderError() {
+    echo ""
+    echo "Test_Push_SameOrParentFolderError"
+
+    #// Set up
+        DeleteFolder  "_testing"
+        mkdir -p "_testing/main"
+        echo ".commit"     > "_testing/main/.gitignore"
+        echo ".commit_*"  >> "_testing/main/.gitignore"
+        echo "x" > "_testing/main/x"
+
+        #// Make a ".commit" folder
+        pushd "_testing/main" > /dev/null
+        echo  "$ locommit"
+        "../../${LocommitCommand}"  ||  TestError
+        popd > /dev/null
+
+        #// Make a ".commit_new" folder
+        echo "x2" > "_testing/main/x"
+        pushd "_testing/main" > /dev/null
+        echo  "$ locommit"
+        "../../${LocommitCommand}"  ||  TestError
+        popd > /dev/null
+
+    #// push command to same folder. This command will be occurred an error
+    pushd "_testing/main" > /dev/null
+    echo  "$ locommit push ."
+    "../../${LocommitCommand}" push "."
+    local  exitCode="$?"
+    popd > /dev/null
+    if [ "${exitCode}" == "0" ]; then  TestError  ;fi
+
+    #// push command to parent folder. This command will be occurred an error
+    pushd "_testing/main" > /dev/null
+    echo  "$ locommit push .."
+    "../../${LocommitCommand}" push ".."
+    local  exitCode="$?"
+    popd > /dev/null
+    if [ "${exitCode}" == "0" ]; then  TestError  ;fi
     DeleteFolder  "_testing"
 }
 

@@ -163,6 +163,15 @@ function  Push() {
 
     #// Copy files and disable read only
     if [ "${repositoryFolderPath}" != "/dev/null" ]; then
+
+        #// Check "repositoryFolderPath". It prevents to delete "source" folder.
+        local  sourceFullPath="$( readlink -f "${source}" )/"
+        local  repositoryFullPath="$( readlink -f "${repositoryFolderPath}" )/"
+        if StartsWith  "${sourceFullPath}"  "${repositoryFullPath}"; then
+            Error  "push 先は カレント フォルダー の外に指定する必要があります"  #// "Push target must be out of current folder"
+        fi
+
+        #// Copy files and disable read only
         echo  "Copied files and disabled read only to \"${repositoryFolderPath}\" folder"
         ls -a "${repositoryFolderPath}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
             rm -rf  "${repositoryFolderPath}/{}"
@@ -444,6 +453,17 @@ function  CopyFolder() {
         ls -a "${source}" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
             cp -Rap  "${source}/{}"  "${destination}/"
     fi
+}
+
+#// StartsWith
+#//     e.g.) if StartsWith  ${wholeString} ${partString}; then
+function  StartsWith() {
+    local  wholeString="$1"
+    local  partString="$2"
+    local  partLength=${#partString}
+
+    #// Set exit code
+    [ "${wholeString:0:${partLength}}" == "${partString}" ]
 }
 
 function  CutLastOf() {
