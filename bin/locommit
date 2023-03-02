@@ -336,7 +336,7 @@ function  Pull() {
     popd > /dev/null
 
     #// Merge
-    #// source: ".commit_repository" folderS
+    #// source: ".commit_repository" folder
     #// destination: current folder
     if [ "${source}" == ".commit_new" ]; then
         git add "."
@@ -344,7 +344,15 @@ function  Pull() {
     fi
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
 
-        git merge  "__locommit_commit_repository" --no-edit  > /dev/null
+        local  mergeLog="$( git merge  "__locommit_commit_repository" --no-edit  2>&1  ||  echo "(ERROR)" )"
+        if echo "${mergeLog}" | grep "Abort."; then
+            echo "${mergeLog}"
+            Error  "failed: git merge .commit_repository"
+        fi
+        if EndsWith "${mergeLog}"  "(ERROR)"; then
+            git add  "."
+            git commit  -m "locommit pull) commit_after_merge" > /dev/null
+        fi
     fi
     if [ "${parentDotGit}" == "${True}" ]; then
         rm -rf  ".git"
@@ -539,6 +547,64 @@ function  AssertInstalled() {
 
     if [ "${exists}" == ${False} ]; then
         Error  "Not installed \"${checkingCommand}\" command"
+    fi
+}
+
+#// pp "$config"
+#// pp "$config" config
+#// pp "$array" array  ${#array[@]}  "${array[@]}"
+#// $( pp "$config" >&2 )
+function  pp() {
+    local  value="$1"
+    local  variableName="$2"
+    if [ "${variableName}" != "" ]; then  variableName=" ${variableName} "  ;fi
+    local  oldIFS="$IFS"
+    IFS=$'\n'
+    local  valueLines=( ${value} )
+    IFS="$oldIFS"
+    if [[ "$(declare -p ${variableName})" =~ "declare -a" ]]; then
+        local  type="array"
+    elif [ "${#valueLines[@]}" == 1  -o  "${#valueLines[@]}" == 0 ]; then
+        local  type="oneLine"
+    else
+        local  type="multiLine"
+    fi
+
+    if [[ "${type}" == "oneLine" ]]; then
+        echo  "@@@${variableName}= \"${value}\" ---------------------------"
+    elif [[ "${type}" == "multiLine" ]]; then
+        echo  "@@@${variableName}---------------------------"
+        echo  "\"${value}\""
+    elif [[ "${type}" == "array" ]]; then
+        echo  "@@@${variableName}---------------------------"
+        local  count="$3"
+        if [ "${count}" == "" ]; then
+            echo  "[0]: \"$4\""
+            echo  "[1]: ERROR: pp parameter is too few"
+        else
+            local  i="0"
+            for (( i = 0; i < ${count}; i += 1 ));do
+                echo  "[$i]: \"$4\""
+                shift
+            done
+        fi
+    else
+        echo  "@@@${variableName}? ---------------------------"
+    fi
+}
+
+# EndsWith
+#    if EndsWith "abc" "bc"; then
+function  EndsWith() {
+    local  output="$1"
+    local  tag="$2"
+
+    local  last="${output:${#output}-${#tag}:${#tag}}"
+
+    if [ "${last}" == "${tag}" ]; then
+        return  "${True}"
+    else
+        return  "${False}"
     fi
 }
 
