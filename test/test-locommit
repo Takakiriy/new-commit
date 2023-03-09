@@ -1348,9 +1348,17 @@ function  Test_Assert() {
 
 function  AssertExist() {
     local  path="$1"
+    local  leftOfWildcard="${path%\**}"
+    if [ "${leftOfWildcard}" == "${path}" ]; then  #// No wildcard
 
-    if [ ! -e "${path}" ]; then
-        TestError  "ERROR: Not found \"${path}\""
+        if [ ! -e "${path}" ]; then
+            Error  "Not found \"${path}\""
+        fi
+    else
+        local  rightOfWildcard="${path##*\*}"
+        if [ ! -e "${leftOfWildcard}"*"${rightOfWildcard}" ]; then
+            Error  "Not found \"${path}\""
+        fi
     fi
 }
 
