@@ -1,0 +1,56 @@
+pull command:
+    Pull function flow: 
+        (root)/.git:  #// [ours .git](currentBranch)
+        Copy:
+            .commit_new/: |  #// Create it
+                (This color describes codes)
+                #// Create ".commit_new" folder
+            .commit_repository/: |  #// Create it
+                #// Create ".commit_repository" folder
+            .commit_before_pull: |  #// Create it
+                #// Create ".commit_before_pull" folder
+        Make branches:
+            (root)/: |  #// git add __Project__
+                #// Add to stage in parent .git, if the parent .git includes current folder.
+            if "(root)/.git" exists:
+                .commit/.git: |  #// git add & git commit   [old .git](currentBranch)
+                    git add "."
+                    git commit -m "Reverted to .commit contents."  > /dev/null
+                .commit_repository/.git (2): |  #// Copy from .commit/.git  [old(2) .git](currentBranch)
+                    cp -Rap  ".git/{}"  "../.commit_repository/.git"
+                (root)/.git: |  #// Move from .commit/.git  [old .git]
+                    mv  ".git"  ".."
+            else:
+                .commit/.git: |  #// Create it  [old(2) .git]
+                    git init ${GitInitOption}  > /dev/null  ||  Error
+                    git add  "."
+                    git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
+                .commit_repository/.git (3): |  #// Move from .commit/.git  [old(2) .git](currentBranch)
+                    mv  ".git"  "../.commit_repository" 
+            .commit_repository/.git (4): |  #// Make a branch and commit  [old(2)→others .git](__locommit_commit_repository branch)
+                git checkout -b "__locommit_commit_repository" > /dev/null 2>&1  ||  Error
+                git add "." > /dev/null
+                git commit  -m "locommit pull) commit_repository" > /dev/null  #// Ignore this command errors
+            .commit_temporary/.git: |  #// Move from .commit_repository/.git  [others .git]
+                mv  ".git"  "../.commit_temporary"
+            .commit_temporary/: |  #// Create it
+                #// Change current branch
+            (root)/.git (2): |  #// Move from .commit_temporary
+                mv  ".git"  ".."
+        Merge:
+            (root)/.git (3): |  #// Commit  [old→ours .git](currentBranch)
+                git add "."
+                git commit  -m "locommit pull) commit_before_pull" > /dev/null
+            (root)/.git (4): |  #// Merge  [old→(ours,others) .git](currentBranch)
+                local  mergeLog="$( git merge  "__locommit_commit_repository" --no-edit  2>&1  ||  echo "(ERROR)" )"
+                git add  "."
+                git commit  -m "locommit pull) commit_after_merge" > /dev/null
+        Clean:
+            if others were updated:
+                .commit_before_pull/.git: |  #// Move from .commit/.git
+                    mv  "../.commit/.git"  "."
+                    git add  "."
+                (root)/.git:  #// Move from .commit_before_pull/.git   [old→(ours,others) .git](currentBranch)
+                    mv  ".commit_before_pull/.git"  "."
+            else:
+                echo  'Pull command did not change any files.'
