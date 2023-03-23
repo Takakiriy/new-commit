@@ -1,14 +1,28 @@
 テスト:
-    Windows:
-        bash の場合:
-            VSCode >> Terminal >> Git bash
+    .git があるケース:
+        Windows:
+            bash の場合:
+                VSCode >> Terminal >> Git bash
+                cd __Project__/test
+                ./test-locommit
+            PowerShell の場合: |
+                VSCode >> Terminal >> PowerShell
+                cd __Project__/test
+                & "C:\Program Files\Git\bin\bash" test-locommit
+        mac:
+            VSCode >> Terminal
             cd __Project__/test
             ./test-locommit
-        PowerShell の場合: |
-            VSCode >> Terminal >> PowerShell
-            cd __Project__/test
-            & "C:\Program Files\Git\bin\bash" test-locommit
-    mac:
-        VSCode >> Terminal
-        cd __Project__/test
-        ./test-locommit
+    ../.git があるケース:
+        bash の場合:
+            -   ls       "../_testing"
+                mkdir -p "../_testing"
+                cp -ap  "."  "../_testing/locommit"
+                cd  "../_testing"
+                git init -b main  #// または Ubuntu 20.04 なら git init
+            -   git add "."  #// git submodule に関する警告は無視します
+            -   git config --global user.email "you@example.com"  #// 終わったら削除されるので任意の名前で構いません
+            -   git config --global user.name "Your Name"
+                git commit -m "First commit for test."
+                cd  "locommit/test"
+                ./test-locommit
