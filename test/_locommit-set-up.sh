@@ -57,7 +57,7 @@ function  TransformFromParentGit() {
 
     #// Resume ".git"
     rm -rf  "${HOME}/_testing/.git"
-    cp -ap  "${HOME}/locommit_old/.git"  "${HOME}/_testing/.git"
+    cp -ap  "${HOME}/locommit_old/.git"  "${HOME}/_testing/locommit/.git"
 
     #// Move to "~/locommit"
     mv  "${HOME}/_testing/locommit"  "${HOME}/locommit"
@@ -66,11 +66,21 @@ function  TransformFromParentGit() {
 }
 
 function  TransformToWithoutGit() {
-    echo  "Not implemented yet"
+    AssertExist     "${HOME}/locommit"
+    AssertNotExist  "${HOME}/locommit_git"
+
+    #// Move ".git"
+    cd                           "${HOME}/locommit"
+    mkdir -p                     "${HOME}/locommit_git"
+    mv  "${HOME}/locommit/.git"  "${HOME}/locommit_git/.git"
 }
 
 function  TransformFromWithoutGit() {
-    echo  "Not implemented yet"
+    AssertNotExist  "${HOME}/locommit/.git"
+
+    #// Move ".git"
+    mv      "${HOME}/locommit_git/.git"  "${HOME}/locommit/.git"
+    rm -rf  "${HOME}/locommit_git"
 }
 
 function  AssertExist() {
