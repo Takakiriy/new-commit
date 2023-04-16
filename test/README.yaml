@@ -1,11 +1,11 @@
-テスト:
-    .git があるケース:
+Test:
+    With ".git":
         Windows:
-            bash の場合:
+            bash:
                 VSCode >> Terminal >> Git bash
                 cd __Project__/test
                 ./test-locommit
-            PowerShell の場合: |
+            PowerShell: |
                 VSCode >> Terminal >> PowerShell
                 cd __Project__/test
                 & "C:\Program Files\Git\bin\bash" test-locommit
@@ -13,16 +13,35 @@
             VSCode >> Terminal
             cd __Project__/test
             ./test-locommit
-    ../.git があるケース:
-        bash の場合:
+    With "../.git":
+        bash:  #// "_testing" folder will be created next to "locommit" folder.
+            #// Set up
+            -   cd       "locommit"
+            #// Remove "_testing"
             -   ls       "../_testing"
-                mkdir -p "../_testing"
+            -   rm -rf   "../_testing"
+            #// Make "_testing"
+            -   mkdir -p "../_testing"
                 cp -ap  "."  "../_testing/locommit"
                 cd  "../_testing"
-                git init -b main  #// または Ubuntu 20.04 なら git init
-            -   git add "."  #// git submodule に関する警告は無視します
-            -   git config --global user.email "you@example.com"  #// 終わったら削除されるので任意の名前で構いません
+                mv  "../locommit"  "../locommit_old"
+                rm -rf  "locommit/.git"
+                git init -b main  #// or git init in Ubuntu 20.04
+            -   git add "."  #// This command must not show the warning about git submodule.
+            -   git config --global user.email "you@example.com"  #// You can set any name because the setting will be deleted when the test is finished.
             -   git config --global user.name "Your Name"
                 git commit -m "First commit for test."
-                cd  "locommit/test"
-                ./test-locommit
+            #// Run tests
+            -   cd  "locommit/test"
+            -   ./test-locommit
+            #// Clean: Move to original "locommit" folder and remove "_testing" folder
+            -   cd  ".."  #// _testing/locommit
+            -   rm -rf  "../.git"
+            -   cp -ap  "../../locommit_old/.git"  "."
+            -   cd  "../.."
+            -   ls  "locommit"  #// Check if the folder does not exist
+            -   mv  "_testing/locommit"  "locommit"
+            -   rm -rf  "_testing"
+                rm -rf  "locommit_old"
+                cd  "locommit"
+    Without ".git":

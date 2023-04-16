@@ -74,7 +74,7 @@ function  NewCommit() {
             git checkout-index -a -f --prefix="${outputFolderName}/"
             rm -rf  ".git"
             mv  "${outputFolderName}/.commit_.git"  ".git"
-        else
+        else  #// There is ".git" folder in parent folder.
             local  gitIgnoreExists="${True}"
             if [ ! -e ".gitignore" ]; then
                 gitIgnoreExists="${False}"
@@ -84,12 +84,16 @@ function  NewCommit() {
             git config --local user.email "${LocommitEMail}"
             git config --local user.name  "${LocommitUser}"
             git add  "."
+            #new
+            git commit -m  "First commit"
 
             git checkout-index -a -f --prefix="${outputFolderName}/"
-            rm -rf  ".git"
-            if [ "${gitIgnoreExists}" == "${False}" ]; then
-                rm  ".gitignore"
-                rm  "${outputFolderName}/.gitignore"
+            if [ "${noGitOption}" == "${True}" ]; then
+                rm -rf  ".git"
+                if [ "${gitIgnoreExists}" == "${False}" ]; then
+                    rm  ".gitignore"
+                    rm  "${outputFolderName}/.gitignore"
+                fi
             fi
         fi
     fi

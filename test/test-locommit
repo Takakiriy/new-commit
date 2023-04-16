@@ -1,9 +1,10 @@
 #!/bin/bash
-cd "${0%/*}" 
+if echo "$0" | grep -E -v "bash-debug|systemd" > /dev/null; then  cd "${0%/*}"  ;fi  # cd this file folder
 LocommitCommand="../bin/locommit"
 
 function  AllTest() {
     DetectTestEnvironment
+
     Test_Error
     Test_ResolvePath
     Test_Assert
@@ -32,7 +33,6 @@ function  AllTest() {
     Test_Pull_Conflict
     Test_Pull_Push_InWorkingSubDirectory
     Test_Pull_Push_TargetInWorkingDirectory
-
     EndOfTest
 }
 
@@ -123,13 +123,24 @@ function  Test_InWorkingSubDirectory() {
     popd > /dev/null
 
     AssertExist     "_testing/.git"
-    AssertNotExist  "_testing/sub/.git"
+    AssertExist     "_testing/sub/.git"
     AssertExist     "_testing/sub/.commit/example.txt"
     AssertExist     "_testing/sub/.commit/.gitignore"
     AssertNotExist  "_testing/sub/.commit/build"
     AssertNotExist  "_testing/sub/.commit/build/out"
     AssertReadOnly  "_testing/sub/.commit/example.txt"
     AssertReadOnly  "_testing/sub/.commit/.gitignore"
+
+    #// Check if no error of submodule, when git add is run.
+    rm -rf  "_testing/sub/.git"
+    echo  "a" >  "_testing/sub/a"
+    pushd "_testing" > /dev/null
+    echo  "git status"
+    if git status --short | grep 'sub/a'; then  : ;  else  TestError  ;fi
+    echo  "git add ."
+
+    git add "."  ||  TestError
+    popd > /dev/null
     DeleteFolder  "_testing"
 }
 
@@ -856,11 +867,11 @@ function  Test_Pull_Conflict() {
         AssertContents  "_testing/.commit_repository/example.txt"   'a\nb\nc new\n'
         grep  "<<<<<<<"  "_testing/example.txt"  > /dev/null  ||  TestError  #// Expected confilcts
         local  result="$(cd _testing  &&  git status --short)"
-        if [ "${InGitWorking}" == "${False}" ]; then
+        # if [ "${IsGitWorking}" == "${True}" ]; then
+        #     echo "${result}" | grep "^AM example.txt$"  > /dev/null  ||  TestError  #// Expected modified
+        # else
             echo "${result}" | grep "^UU example.txt$"  > /dev/null  ||  TestError  #// Expected both modified
-        else
-            echo "${result}" | grep "^AM example.txt$"  > /dev/null  ||  TestError  #// Expected modified
-        fi
+        # fi
         AssertExist     "_testing/.commit_before_pull"
         AssertExist     "_testing/.commit_repository"
         AssertNotExist  "_testing/.commit_new"
@@ -1661,7 +1672,7 @@ function  DetectTestEnvironment() {
         TestEnvironmentNum=1
         IsGitWorking="${False}"
         InGitWorking="${False}"
-    elif [ "${gitWorkingRootPath}" == "${PWD}" ]; then
+    elif [ "${gitWorkingRootPath}/test" == "${PWD}" ]; then
         TestEnvironmentNum=2
         IsGitWorking="${True}"
         InGitWorking="${False}"
