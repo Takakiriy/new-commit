@@ -15,7 +15,15 @@
             "request": "launch",
             "program": "${workspaceFolder}/bin/locommit",
             "cwd": "${workspaceFolder}/test/_testing",
-            "args": ["--no-git"]
+            "args": ["--no-git"]  // Edit it
+        },
+        {
+            "name": "_locommit-set-up.sh",
+            "type": "bashdb",
+            "request": "launch",
+            "program": "${workspaceFolder}/_locommit-set-up.sh",
+            "cwd": "${workspaceFolder}",
+            "args": ["--transform-from-parent-git"]  // Edit it
         }
     ]
 }
