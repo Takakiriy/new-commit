@@ -15,41 +15,41 @@ Test:
             ./test-locommit
     With "../.git":
         # set up WSL
-        - (Install WSL2 Ubuntu 20.04)
-        - (PowerShell) >> wsl >> cd $HOME
-        - git clone https://github.com/Takakiriy/locommit  -b develop
+            -   (Install WSL2 Ubuntu 20.04)
+            -   (PowerShell) >> wsl >> cd $HOME
+            -   git clone https://github.com/Takakiriy/locommit  -b develop
         # set up in WSL
-        - mkdir -p  ~/bin/.vscode
-        - cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
-        - cp  ~/locommit/test/README.yaml          ~/bin/README.yaml
-        - cp  ~/locommit/.vscode/launch.json       ~/bin/.vscode/launch.json
-        - code  ~/bin
-        - (Close VSCode opening locommit)
-        - ~/bin/_locommit-set-up.sh  --transform-to-parent-git
+            -   cd  ${HOME}
+            -   mkdir -p  ~/bin/.vscode
+            -   cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
+                cp  ~/locommit/test/README.yaml          ~/bin/README.yaml
+                cp  ~/locommit/.vscode/launch.json       ~/bin/.vscode/launch.json
+            -   code  ~/bin
+            -   (Close VSCode opening locommit)
+            -   ~/bin/_locommit-set-up.sh  --transform-to-parent-git
         # test
-        - code  ~/_testing/locommit
-        - cd test
-        - ./test-locommit
+            -   code  ~/_testing/locommit
+            -   cd test
+            -   ./test-locommit
         # clean
-        - code  ~/bin
-        - (Close VSCode opening locommit)
-        - ~/bin/_locommit-set-up.sh  --transform-from-parent-git
-        - cp  ~/bin/_locommit-set-up.sh  ~/locommit/test/_locommit-set-up.sh
-        - cp  ~/bin/README.yaml          ~/locommit/test/README.yaml
-        - cp  ~/bin/.vscode/launch.json  ~/locommit/.vscode/launch.json
-        - code  ~/locommit
-        - (Close VSCode opening bin)
+            -   code  ~/bin
+            -   (Close VSCode opening locommit)
+            -   ~/bin/_locommit-set-up.sh  --transform-from-parent-git
+            -   cp  ~/bin/_locommit-set-up.sh  ~/locommit/test/_locommit-set-up.sh
+                cp  ~/bin/README.yaml          ~/locommit/test/README.yaml
+                cp  ~/bin/.vscode/launch.json  ~/locommit/.vscode/launch.json
+            -   code  ~/locommit
+            -   (Close VSCode opening bin)
         # commit
-        - git add "."
-        - git commit -m "____"
-        - git push
+            -   git add "."
+            -   git commit -m "____"
+            -   git push
     Without ".git":
         # set up in WSL
-        - code  ~/locommit
-        - ~/bin/_locommit-set-up.sh  --transform-to-without-git
+            - code  ~/locommit
+            - ~/bin/_locommit-set-up.sh  --transform-to-without-git
         # test
-        - code  ~/_testing/locommit
-        - cd test
-        - ./test-locommit
+            - cd test
+            - ./test-locommit
         # clean
-        - ~/bin/_locommit-set-up.sh  --transform-from-without-git
+            - ~/bin/_locommit-set-up.sh  --transform-from-without-git
