@@ -66,13 +66,13 @@ function  NewCommit() {
         if [ "${currentFolder}" == "${gitWorkingRootPath}" ]; then
             mkdir -p  "${outputFolderName}"
             mv  ".git"  "${outputFolderName}/.commit_.git"
-            git init ${GitInitOption}  > /dev/null
+            git init ${GitInitOption}  > /dev/null  #// Temporary .git
             git config --local user.email "${LocommitEMail}"
             git config --local user.name  "${LocommitUser}"
             git add  "."  #// checkout new contents
 
             git checkout-index -a -f --prefix="${outputFolderName}/"
-            rm -rf  ".git"
+            rm -rf  ".git"  #// Temporary .git
             mv  "${outputFolderName}/.commit_.git"  ".git"
         else  #// There is ".git" folder in parent folder.
             local  gitIgnoreExists="${True}"
@@ -80,16 +80,18 @@ function  NewCommit() {
                 gitIgnoreExists="${False}"
                 cat  "${gitWorkingRootPath}/.gitignore"  |  grep -v  "^/"  >  ".gitignore"
             fi
+            if [ "${noGitOption}" == "${False}" ]; then
+                echo  "Added .git folder and first commit."
+            fi
             git init ${GitInitOption}  > /dev/null
             git config --local user.email "${LocommitEMail}"
             git config --local user.name  "${LocommitUser}"
             git add  "."
-            #new
             git commit -m  "First commit"
 
             git checkout-index -a -f --prefix="${outputFolderName}/"
             if [ "${noGitOption}" == "${True}" ]; then
-                rm -rf  ".git"
+                rm -rf  ".git"  #// Temporary .git
                 if [ "${gitIgnoreExists}" == "${False}" ]; then
                     rm  ".gitignore"
                     rm  "${outputFolderName}/.gitignore"
