@@ -46,12 +46,12 @@ function  NewCommit() {
     if [ "${gitWorkingRootPath}" == "" ]; then
         rm -rf  "${outputFolderName}"
         if [ "${noGitOption}" == "${False}" ]; then
+            echo  "Added .git folder and first commit."
             git init ${GitInitOption}  > /dev/null  2>&1
             git config --local user.email "${LocommitEMail}"
             git config --local user.name  "${LocommitUser}"
             git add "."  > /dev/null  2>&1
             git commit  -m "locommit) Created local working directory"  > /dev/null  2>&1
-            echo  "Added .git folder and first commit."
         else
             git init ${GitInitOption}  > /dev/null  2>&1
             git config --local user.email "${LocommitEMail}"
@@ -61,6 +61,13 @@ function  NewCommit() {
         mkdir  "${outputFolderName}"
 
         git checkout-index -a -f --prefix="${outputFolderName}/"
+        if [ "${noGitOption}" == "${True}" ]; then
+            rm -rf  ".git"  #// Temporary .git
+            if [ "${gitIgnoreExists}" == "${False}" ]; then
+                rm  ".gitignore"
+                rm  "${outputFolderName}/.gitignore"
+            fi
+        fi
     else
         rm -rf  "${outputFolderName}"
         if [ "${currentFolder}" == "${gitWorkingRootPath}" ]; then
@@ -355,11 +362,6 @@ function  Pull() {
             echo "${mergeLog}"
             Error  "failed: git merge .commit_repository"
         fi
-        # // This code will be deleted. 
-        # if EndsWith "${mergeLog}"  "(ERROR)"; then
-        #     git add  "."
-        #     git commit  -m "locommit pull) commit_after_merge" > /dev/null
-        # fi
     fi
     if [ "${parentDotGit}" == "${True}" ]; then
         rm -rf  ".git"

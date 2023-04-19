@@ -867,11 +867,7 @@ function  Test_Pull_Conflict() {
         AssertContents  "_testing/.commit_repository/example.txt"   'a\nb\nc new\n'
         grep  "<<<<<<<"  "_testing/example.txt"  > /dev/null  ||  TestError  #// Expected confilcts
         local  result="$(cd _testing  &&  git status --short)"
-        # if [ "${IsGitWorking}" == "${True}" ]; then
-        #     echo "${result}" | grep "^AM example.txt$"  > /dev/null  ||  TestError  #// Expected modified
-        # else
-            echo "${result}" | grep "^UU example.txt$"  > /dev/null  ||  TestError  #// Expected both modified
-        # fi
+        echo "${result}" | grep "^UU example.txt$"  > /dev/null  ||  TestError  #// Expected both modified
         AssertExist     "_testing/.commit_before_pull"
         AssertExist     "_testing/.commit_repository"
         AssertNotExist  "_testing/.commit_new"

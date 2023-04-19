@@ -47,9 +47,11 @@ Test:
     Without ".git":
         # set up in WSL
             - code  ~/locommit
+            - cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
             - ~/bin/_locommit-set-up.sh  --transform-to-without-git
         # test
             - cd test
             - ./test-locommit
         # clean
             - ~/bin/_locommit-set-up.sh  --transform-from-without-git
+            - rm  ~/bin/_locommit-set-up.sh
