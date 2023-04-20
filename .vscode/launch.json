@@ -14,8 +14,8 @@
             "type": "bashdb",
             "request": "launch",
             "program": "${workspaceFolder}/bin/locommit",
-            "cwd": "${workspaceFolder}/test/_testing",
-            "args": ["--no-git"]  // Edit it
+            "cwd": "${workspaceFolder}/test",
+            "args": ["clone", "_testing/repository", "_testing/a/work"],  // Edit it
         },
         {
             "name": "_locommit-set-up.sh",

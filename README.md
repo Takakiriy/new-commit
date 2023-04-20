@@ -1,4 +1,6 @@
-# locommit shell script (.commit folder)
+# git locommit (.commit folder)
+
+( [Japanese](./README-jp.md) )
 
 ## Overview
 
@@ -173,6 +175,27 @@ Sample commands:
     $ ls .commit
     .gitignore
     package.json
+
+
+## clone command
+
+```mermaid
+graph RL;
+    r[ Existing folder ] -- git clone --> c[ New folder ];
+```
+
+The clone command copies files from existing folder
+except excluded files by the `.gitignore` file just under an existing folder
+and creates `.commit` and `.git` folders.
+It is not necesary to take care that existing folders and new folders are
+inside or outside Git working directory.
+
+    locommit clone __OriginalFolder__ __NewWorkingFolder__
+
+Sample commands:
+
+    $ locommit clone "OriginalFolder" "NewWorkingFolder"
+    Created new ".commit" folder.
 
 
 ## pull command

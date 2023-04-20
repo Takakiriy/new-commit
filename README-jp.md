@@ -1,4 +1,4 @@
-# locommit シェルスクリプト (.commit フォルダー)
+# git locommit (.commit フォルダー)
 
 ## 概要
 
@@ -171,6 +171,26 @@ flowchart TD;
     $ ls .commit
     .gitignore
     package.json
+
+
+## clone コマンド
+
+```mermaid
+graph RL;
+    r[ 既存のフォルダー ] -- git clone --> c[ 新しいフォルダー ];
+```
+
+clone コマンドは、既存のフォルダーの直下にある `.gitignore` ファイルによる
+対象外のファイル以外のファイルをコピーして、
+`.commit` フォルダーと `.git` フォルダーを作ります。 
+既存のフォルダーや新しいフォルダーは Git の ワーキング ディレクトリ の中でも外でも構いません。
+
+    locommit clone __OriginalFolder__ __NewWorkingFolder__
+
+コマンドの例:
+
+    $ locommit clone "OriginalFolder" "NewWorkingFolder"
+    Created new ".commit" folder.
 
 
 ## pull コマンド

@@ -7,6 +7,9 @@ function  Main() {
         NewCommit
     elif [ "${subCommand:0:1}" == "-" ]; then
         NewCommit  "$@"
+    elif [ "${subCommand}" == "clone" ]; then
+        shift
+        Clone  "$@"
     elif [ "${subCommand}" == "status" ]; then
         shift
         NewCommit  "$@"
@@ -31,7 +34,7 @@ function  NewCommit() {
     fi
     local  currentFolder="${PWD}"
     local  gitWorkingRootPath="$( GetGitWorkingRootPath  || echo "(ERROR)" )"
-    local  outputFolderName
+    local  outputFolderName=""
     ErrorIfLastIs  "${gitWorkingRootPath}"  "(ERROR)"
     if [ ! -e ".commit" ]; then
         outputFolderName=".commit"
@@ -94,7 +97,7 @@ function  NewCommit() {
             git config --local user.email "${LocommitEMail}"
             git config --local user.name  "${LocommitUser}"
             git add  "."
-            git commit -m  "First commit"
+            git commit -m  "locommit) First commit"
 
             git checkout-index -a -f --prefix="${outputFolderName}/"
             if [ "${noGitOption}" == "${True}" ]; then
@@ -149,6 +152,51 @@ function  NewCommit() {
     if [ "${gitWorkingRootPath}" == ""  -a  "${noGitOption}" == "${True}" ]; then
         rm -rf  ".git"
     fi
+}
+
+function  Clone() {
+    local  repositoryFolderPath="$1"
+    local  destinationFolderPath="$2"
+    if [ "$1" == ""  -o  "$2" == "" ]; then
+        Error  "ERROR: locommit clone __RepositoryFolderPath__ __DestinationFolderPath__"
+    fi
+    repositoryFolderPath=$( ResolvePath "${repositoryFolderPath}" )
+    repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
+    AssertExist  "${repositoryFolderPath}"
+    if [ -e "${destinationFolderPath}" ]; then
+        Error  "fatal: destination path '${destinationFolderPath}' already exists."  128
+    fi
+
+    mkdir -p  "${destinationFolderPath}"
+    destinationFolderPath="$( readlink -f "${destinationFolderPath}" )"
+
+    pushd  "${repositoryFolderPath}"  > /dev/null
+    if [ -e ".git" ]; then
+        local  hasDotGit="${True}"
+    else
+        local  hasDotGit="${False}"
+        git init ${GitInitOption}  > /dev/null  2>&1
+        git config --local user.email "${LocommitEMail}"
+        git config --local user.name  "${LocommitUser}"
+        git add "."  > /dev/null  2>&1
+    fi
+
+    git checkout-index -a -f --prefix="${destinationFolderPath}/.commit/"
+    echo  'Created new ".commit" folder.'
+    CopyFolder  "${destinationFolderPath}/.commit"  "${destinationFolderPath}"
+    find  "${destinationFolderPath}/.commit" -type f  |  xargs  -I {} \
+        chmod -w "{}"
+    if [ "${hasDotGit}" == "${False}" ]; then
+        rm -rf  "${repositoryFolderPath}/.git"
+    fi
+
+    cd  "${destinationFolderPath}"
+    git init ${GitInitOption}  > /dev/null  2>&1
+    git config --local user.email "${LocommitEMail}"
+    git config --local user.name  "${LocommitUser}"
+    git add "."  > /dev/null  2>&1
+    git commit -m  "locommit) First commit"  > /dev/null
+    popd  > /dev/null
 }
 
 function  Push() {
