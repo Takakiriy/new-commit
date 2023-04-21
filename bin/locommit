@@ -63,7 +63,7 @@ function  NewCommit() {
         fi
         mkdir  "${outputFolderName}"
 
-        git checkout-index -a -f --prefix="${outputFolderName}/"
+        git checkout-index -fau --prefix="${outputFolderName}/"
         if [ "${noGitOption}" == "${True}" ]; then
             rm -rf  ".git"  #// Temporary .git
             if [ "${gitIgnoreExists}" == "${False}" ]; then
@@ -81,7 +81,7 @@ function  NewCommit() {
             git config --local user.name  "${LocommitUser}"
             git add  "."  #// checkout new contents
 
-            git checkout-index -a -f --prefix="${outputFolderName}/"
+            git checkout-index -fau --prefix="${outputFolderName}/"
             rm -rf  ".git"  #// Temporary .git
             mv  "${outputFolderName}/.commit_.git"  ".git"
         else  #// There is ".git" folder in parent folder.
@@ -99,7 +99,7 @@ function  NewCommit() {
             git add  "."
             git commit -m  "locommit) First commit"
 
-            git checkout-index -a -f --prefix="${outputFolderName}/"
+            git checkout-index -fau --prefix="${outputFolderName}/"
             if [ "${noGitOption}" == "${True}" ]; then
                 rm -rf  ".git"  #// Temporary .git
                 if [ "${gitIgnoreExists}" == "${False}" ]; then
@@ -113,7 +113,7 @@ function  NewCommit() {
     #// Set read only
     if [ "${noGitOption}" == "${False}" ]; then
         find "${outputFolderName}" -type f  |  xargs  -I {} \
-            chmod -w "{}"
+            chmod 444 "{}"
     fi
 
     #// Show conflict file names
@@ -178,14 +178,18 @@ function  Clone() {
         git init ${GitInitOption}  > /dev/null  2>&1
         git config --local user.email "${LocommitEMail}"
         git config --local user.name  "${LocommitUser}"
-        git add "."  > /dev/null  2>&1
     fi
+    git reset  > /dev/null
+    git rm -r --cached  "."  > /dev/null  2>&1
+    git add "."  > /dev/null  2>&1
+    mkdir -p  "${destinationFolderPath}"
 
-    git checkout-index -a -f --prefix="${destinationFolderPath}/.commit/"
+    git checkout-index -fau --prefix="${destinationFolderPath}/.commit/"
+    git reset  > /dev/null
     echo  'Created new ".commit" folder.'
     CopyFolder  "${destinationFolderPath}/.commit"  "${destinationFolderPath}"
     find  "${destinationFolderPath}/.commit" -type f  |  xargs  -I {} \
-        chmod -w "{}"
+        chmod 444 "{}"
     if [ "${hasDotGit}" == "${False}" ]; then
         rm -rf  "${repositoryFolderPath}/.git"
     fi
