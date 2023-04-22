@@ -14,7 +14,7 @@
             "type": "bashdb",
             "request": "launch",
             "program": "${workspaceFolder}/bin/locommit",
-            "cwd": "${workspaceFolder}/test",
+            "cwd": "${workspaceFolder}/test",  // Edit it
             "args": ["clone", "_testing/repository", "_testing/a/work"],  // Edit it
         },
         {

@@ -15,6 +15,7 @@ function  AllTest() {
 
     Test_1
     Test_Clone
+    Test_ChangeAndClone
     Test_InWorkingDirectory
     Test_InWorkingSubDirectory
     Test_NoUpdate
@@ -27,6 +28,7 @@ function  AllTest() {
     Test_Push_NoCommitNewNoDiff
     Test_Push_NoCommitError
     Test_Push_Null
+    Test_Push_RemovedFiles
     Test_Push_SameOrParentFolderError
     Test_Pull_1
     Test_Pull_NoInput
@@ -70,8 +72,8 @@ function  Test_Clone() {
     echo  ""
     echo  "### Test_Clone"
     DeleteFolder  "_testing"
-    mkdir -p   "_testing/repository/build"
-    mkdir -p   "_testing/repository/sub"
+    mkdir -p  "_testing/repository/build"
+    mkdir -p  "_testing/repository/sub"
 
     #// Set up
     echo "x" > "_testing/repository/a.txt"
@@ -95,13 +97,68 @@ function  Test_Clone() {
 
     #// Set up
     echo  "Error test:"
-    rm  "_testing/a/work/a.txt"
+    rm  "_testing/a/work/a.txt"  #// Because of checking not to copy it by clone
 
     #// Main
     "${LocommitCommand}" clone "_testing/repository" "_testing/a/work"  &&  Error
 
     #// Check
-    AssertNotExist     "_testing/a/work/a.txt"
+    AssertNotExist  "_testing/a/work/a.txt"
+    DeleteFolder  "_testing"
+}
+
+function  Test_ChangeAndClone() {
+    echo  ""
+    echo  "### Test_ChangeAndClone"
+    DeleteFolder  "_testing"
+    mkdir -p  "_testing/repository"
+
+    #// Set up
+        #// Make a repository
+        echo "x" > "_testing/repository/edit.txt"
+        echo "x" > "_testing/repository/ignored.txt"
+        echo ".commit"    > "_testing/repository/.gitignore"
+        echo ".commit_*" >> "_testing/repository/.gitignore"
+        pushd  "_testing/repository"  > /dev/null
+        git init ${GitInitOption}  > /dev/null  2>&1
+        git config --local user.email "${LocommitEMail}"
+        git config --local user.name  "${LocommitUser}"
+        git add "."  > /dev/null  2>&1
+        git commit  -m "Already files exist"  > /dev/null  2>&1
+        popd  > /dev/null
+
+        #// Edit files in the working folder
+        echo "edited"       > "_testing/repository/edit.txt"
+        echo "ignored.txt" >> "_testing/repository/.gitignore"
+
+    #// Main
+    "${LocommitCommand}" clone "_testing/repository" "_testing/a/work"  ||  Error
+
+    #// Check
+    if [ "$( cat "_testing/repository/edit.txt" )" != "edited" ]; then  Error  ;fi
+    AssertNotExist  "_testing/a/work/ignored.txt"
+    rm -rf  "_testing/a/work"
+
+    #// Set up
+    echo  "Error test:"
+    echo ".commit"    > "_testing/repository/.gitignore"
+    echo ".commit_*" >> "_testing/repository/.gitignore"
+    pushd  "_testing/repository"  > /dev/null
+    git reset  > /dev/null
+    echo "edited2"  > "edit.txt"
+    git add           "edit.txt"
+    local  statusBefore="$( git status --short )"
+    popd  > /dev/null
+
+    #// Main
+    "${LocommitCommand}" clone "_testing/repository" "_testing/a/work"  &&  Error
+
+    #// Check
+    AssertNotExist  "_testing/a/work"
+    pushd  "_testing/repository"  > /dev/null
+    local  status="$( git status --short )"
+    popd  > /dev/null
+    if [ "${status}" != "${statusBefore}" ]; then  Error  ;fi
     DeleteFolder  "_testing"
 }
 
@@ -389,8 +446,6 @@ function  Test_Push_1() {
     DeleteFolder  "_testing"
     MakePushTestFiles
     echo "del" > "_testing/will_delete.txt"
-    echo ""
-    echo "Test_Push_1"
 
     pushd "_testing" > /dev/null
 
@@ -425,7 +480,7 @@ function  Test_Push_1() {
     AssertExist        "_testing/_repository/new X.txt"
     AssertExist        "_testing/_repository/.gitignore"
     AssertExist        "_testing/_repository/.git"
-    AssertNotExist     "_testing/_repository/old_files"
+    AssertExist        "_testing/_repository/old_files"
     AssertNotExist     "_testing/_repository/build"
     AssertNotExist     "_testing/_repository/build/out"
     AssertNotReadOnly  "_testing/_repository/example.txt"
@@ -444,8 +499,6 @@ function  Test_Push_NoCommitNewNoDiff() {
     echo  "### Test_Push_NoCommitNewNoDiff"
     DeleteFolder  "_testing"
     MakePushTestFiles
-    echo ""
-    echo "Test_Push_NoCommitNewNoDiff"
 
     pushd "_testing" > /dev/null
     echo  "$ locommit"
@@ -468,8 +521,6 @@ function  Test_Push_NoCommitError() {
     #// Error test of no .commit_new but different contents
     DeleteFolder  "_testing"
     MakePushTestFiles
-    echo ""
-    echo "Test_Push_NoCommitError"
 
     pushd "_testing" > /dev/null
     echo  "$ locommit"
@@ -537,6 +588,56 @@ function  Test_Push_Null() {
     AssertNotExist  "_testing/.commit_new"
     AssertExist     "_testing/.commit"
     AssertContents  "_testing/.commit/example.txt"  'a new\nb\nc\n'
+    DeleteFolder  "_testing"
+}
+
+function  Test_Push_RemovedFiles() {
+    echo ""
+    echo "Test_Push_RemovedFiles"
+
+    #// Set up
+        DeleteFolder  "_testing"
+
+        #// Make a "repository" folder
+        mkdir -p  "_testing/repository/sub"
+        echo ".commit"     > "_testing/repository/.gitignore"
+        echo ".commit_*"  >> "_testing/repository/.gitignore"
+        echo "x" > "_testing/repository/x"
+        echo "y" > "_testing/repository/y"
+        echo "x" > "_testing/repository/sub/x"
+        echo "y" > "_testing/repository/sub/y"
+
+        #// Make a "working" and ".commit" folder
+        echo  "$ locommit clone"
+        "${LocommitCommand}" clone  "_testing/repository"  "_testing/working"  ||  TestError
+
+        #// Make a ".commit_new" folder
+        rm  "_testing/working/x"
+        rm  "_testing/working/sub/y"
+        echo  "updated"  >  "_testing/working/y"
+        pushd "_testing/working" > /dev/null
+        echo  "$ locommit"
+        "../../${LocommitCommand}"  ||  TestError
+        popd > /dev/null
+
+        #// Add other files to "repository" folder
+        echo "z" > "_testing/repository/z"
+        echo "z" > "_testing/repository/sub/z"
+
+    #// Main
+    pushd "_testing/working" > /dev/null
+    echo  "$ locommit push"
+    "../../${LocommitCommand}" push  "../repository"  ||  TestError
+    popd > /dev/null
+
+    #// Check
+    AssertNotExist  "_testing/repository/x"
+    AssertExist     "_testing/repository/y"
+    AssertExist     "_testing/repository/sub/x"
+    AssertNotExist  "_testing/repository/sub/y"
+    AssertExist     "_testing/repository/z"
+    AssertExist     "_testing/repository/sub/z"
+    if [ "$( cat "_testing/repository/y" )" != "updated" ]; then  TestError  ;fi
     DeleteFolder  "_testing"
 }
 
@@ -1096,15 +1197,16 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
 
 function  MakePushTestFiles() {
     mkdir -p "_testing/build"
-    echo "x" > "_testing/build/out"
-    echo "x" > "_testing/example.txt"
+    mkdir -p "_testing/_repository/.git"
+
+    echo "x"            > "_testing/build/out"
+    echo "x "           > "_testing/example.txt"
     echo ".commit"      > "_testing/.gitignore"
     echo ".commit_*"   >> "_testing/.gitignore"
     echo "build"       >> "_testing/.gitignore"
     echo "_repository" >> "_testing/.gitignore"
-    mkdir -p "_testing/_repository/.git"
-    echo "git" > "_testing/_repository/.git/files"
-    echo "old" > "_testing/_repository/old_files"
+    echo "git"          > "_testing/_repository/.git/files"
+    echo "old"          > "_testing/_repository/old_files"
 }
 
 function  Test_ResolvePath() {

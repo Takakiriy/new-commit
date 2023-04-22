@@ -124,7 +124,7 @@ function  NewCommit() {
     ErrorIfLastIs  "${conflictOutput}"  "(ERROR)"
     if [ "${conflictOutput}" != "" ]; then
         echo  "CONFLICT:"
-        echoWithIndent  "${conflictOutput}"  "    "
+        EchoWithIndent  "${conflictOutput}"  "    "
     fi
 
     #// Show different file names
@@ -145,7 +145,7 @@ function  NewCommit() {
         else
             echo  'Created new ".commit_new" folder.'
             echo  'Changes for .commit:'
-            echoWithIndent  "${diff_output}"  "    "
+            EchoWithIndent  "${diff_output}"  "    "
         fi
     fi
 
@@ -160,6 +160,9 @@ function  Clone() {
     if [ "$1" == ""  -o  "$2" == "" ]; then
         Error  "ERROR: locommit clone __RepositoryFolderPath__ __DestinationFolderPath__"
     fi
+    pushd  "${repositoryFolderPath}"  > /dev/null
+    CheckIfResetState
+    popd  > /dev/null
     repositoryFolderPath=$( ResolvePath "${repositoryFolderPath}" )
     repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
     AssertExist  "${repositoryFolderPath}"
@@ -179,13 +182,13 @@ function  Clone() {
         git config --local user.email "${LocommitEMail}"
         git config --local user.name  "${LocommitUser}"
     fi
-    git reset  > /dev/null
+    git reset "."  > /dev/null
     git rm -r --cached  "."  > /dev/null  2>&1
     git add "."  > /dev/null  2>&1
     mkdir -p  "${destinationFolderPath}"
 
     git checkout-index -fau --prefix="${destinationFolderPath}/.commit/"
-    git reset  > /dev/null
+    git reset "."  > /dev/null
     echo  'Created new ".commit" folder.'
     CopyFolder  "${destinationFolderPath}/.commit"  "${destinationFolderPath}"
     find  "${destinationFolderPath}/.commit" -type f  |  xargs  -I {} \
@@ -238,11 +241,26 @@ function  Push() {
 
         #// Copy files and disable read only
         echo  "Copied files and disabled read only to \"${repositoryFolderPath}\" folder"
-        ls -a "${repositoryFolderPath}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
-            rm -rf  "${repositoryFolderPath}/{}"
         CopyFolder  "${source}"  "${repositoryFolderPath}"  "--exclude=./.git"
         find "${repositoryFolderPath}" -type f  |  xargs -I {} \
             chmod +w "{}"
+
+        #// Delete deleted files
+        if [ "${source}" == ".commit_new" ]; then
+            local  oldFileNames="$( find ".commit"     -type f  |  sed -E 's/$/:/' )"
+            local  newFileNames="$( find ".commit_new" -type f  |  sed -E 's/$/:/'  |  sed -E 's/^.commit_new/.commit/' )"
+            local  deletingFileNames="$( CutCommonPartLines  "${oldFileNames}"  "${newFileNames}" )"
+            deletingFileNames="$( echo "${deletingFileNames}"  |  sed -E 's|^.commit/||'  |  sed -E 's|:$||' )"
+            if [ "${deletingFileNames}" != "" ]; then
+                echo  "Deleting some files in \"${repositoryFolderPath}\" folder"
+                local  oldIFS="$IFS"
+                IFS=$'\n'
+                for fileName in ${deletingFileNames}; do
+                    rm -f  "${repositoryFolderPath}/${fileName}"
+                done
+                IFS="$oldIFS"
+            fi
+        fi
     fi
 
     #// (.commit_new case) Update .commit folder
@@ -435,7 +453,7 @@ function  Pull() {
         local  diff_output="$( diff -qr  ".commit"  ".commit_repository" )"
         ErrorIfLastIs  "${diff_output}"  "(ERROR)"
         echo  "Updated files by this merge from others:"
-        echoWithIndent  "${diff_output}"  "    "
+        EchoWithIndent  "${diff_output}"  "    "
     else
         echo  'Renamed \".commit_before_pull\" folder to \".commit_new\" folder'
         echo  'Deleted \".commit_repository\" folder'
@@ -448,15 +466,38 @@ function  Pull() {
     fi
 }
 
-function  echoWithIndent() {
+function  CheckIfResetState() {
+    local  status="$( git status --short )"
+    if echo  "${status}"  |  grep -E '^[^ ]. [^.]' > /dev/null; then
+        echo  '$ git status --short'
+        echo  "${status}"
+        Error  'ERROR: clone does not supported, when files were git added. You can clone, if you run git reset ".".'
+    fi
+    # M  edit.txt    ... after git add ... Error
+    #  M edit.txt    ... before git add ... OK
+    # M  ../edit.txt ... after git add but out of folder ... OK
+    # M  .hidden.txt ... not out of folder ... Error
+}
+
+function  Test_CheckIfResetState() {
+    echo 'M  edit.txt'    | grep -E '^[^ ]. .[^.]'  ||  Error
+    echo  'M edit.txt'    | grep -E '^[^ ]. .[^.]'  &&  Error
+    echo 'M  ../edit.txt' | grep -E '^[^ ]. .[^.]'  &&  Error
+    echo 'M  .hidden.txt' | grep -E '^[^ ]. .[^.]'  ||  Error
+        # &&: Error if match ... CheckIfResetState is successed.
+        # ||: Error if not match ... CheckIfResetState raises an error.
+}
+
+function  EchoWithIndent() {
     local  message="$1"
     local  indent="$2"
+    local  oldIFS="$IFS"
 
     IFS=$'\n'
     for  line  in ${message}; do
         echo "${indent}${line}"
     done
-    unset IFS
+    IFS="$oldIFS"
 }
 
 function  ResolvePath() {
@@ -522,6 +563,30 @@ function  CopyFolder() {
         ls -a "${source}" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
             cp -Rap  "${source}/{}"  "${destination}/"
     fi
+}
+
+function  CutCommonPartLines() {
+    local  targetLines="$1"
+    local  cuttingPartLines="$2"
+
+    #// targetLines - cuttingPartLines
+    if [ "${cuttingPartLines}" == "" ]; then
+        echo  "${targetLines}"  #// Because "grep -vFf /dev/null" returns empty
+    else
+        echo  "${targetLines}"  |  grep -vFf <( echo "${cuttingPartLines}" )
+    fi
+
+    #// If a cutting line contains in a part of target line, cut the target line.
+    #// Example:
+    #//     targetLines:
+    #//         ab
+    #//         cd
+    #//         ef
+    #//     cuttingPartLines:
+    #//         c
+    #//     return:
+    #//         ab
+    #//         ef
 }
 
 #// StartsWith
