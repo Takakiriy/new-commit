@@ -34,6 +34,7 @@ function  AllTest() {
     Test_Pull_NoInput
     Test_Pull_Merge
     Test_Pull_Conflict
+    Test_Pull_IgnoreInRepository
     Test_Pull_Push_InWorkingSubDirectory
     Test_Pull_Push_TargetInWorkingDirectory
     EndOfTest
@@ -951,12 +952,14 @@ function  Test_Pull_Conflict() {
     echo "a"  > "_testing/example.txt"
     echo "b" >> "_testing/example.txt"
     echo "c" >> "_testing/example.txt"
+    echo "in work" > "_testing/build/ignore.txt"  #// ignore test case
 
-    mkdir -p "_testing/_repository"
+    mkdir -p "_testing/_repository/build"
     cp  "_testing/.gitignore"  "_testing/_repository/.gitignore"
     echo "a"      > "_testing/_repository/example.txt"
     echo "b"     >> "_testing/_repository/example.txt"
     echo "c new" >> "_testing/_repository/example.txt"
+    echo "in rep" > "_testing/_repository/build/ignore.txt"  #// ignore test case
     pushd "_testing/_repository" > /dev/null
     git init ${GitInitOption} > /dev/null  2>&1
     git config --local user.email "${LocommitEMail}"
@@ -996,6 +999,7 @@ function  Test_Pull_Conflict() {
         AssertExist     "_testing/.commit_before_pull"
         AssertExist     "_testing/.commit_repository"
         AssertNotExist  "_testing/.commit_new"
+        AssertNotExist  "_testing/.commit_repository/build/ignore.txt"
 
     #// Still conflicted (locommit command)
         pushd "_testing" > /dev/null
@@ -1023,6 +1027,7 @@ function  Test_Pull_Conflict() {
         AssertExist  "_testing/.commit_before_pull"
         AssertExist  "_testing/.commit_repository"
         AssertExist  "_testing/.commit_new"
+        AssertContents  "_testing/build/ignore.txt"  "in work"
  
     #// push command
         pushd "_testing" > /dev/null
@@ -1031,9 +1036,79 @@ function  Test_Pull_Conflict() {
         popd > /dev/null
 
         AssertContents  "_testing/_repository/example.txt"  'a\nb\nc merged\n'
+        AssertContents  "_testing/_repository/build/ignore.txt"  "in rep"
         AssertNotExist  "_testing/.commit_before_pull"
         AssertNotExist  "_testing/.commit_repository"
         AssertNotExist  "_testing/.commit_new"
+    DeleteFolder  "_testing"
+}
+
+function  Test_Pull_IgnoreInRepository() {  #// Base test is "Test_Pull_1"
+    echo  ""
+    echo  "### Test_Pull_IgnoreInRepository"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing/working"
+    echo ".commit"      > "_testing/working/.gitignore"
+    echo ".commit_*"   >> "_testing/working/.gitignore"
+    echo "_repository" >> "_testing/working/.gitignore"
+    echo "build"       >> "_testing/working/.gitignore"
+    mkdir -p "_testing/working/build"
+
+    echo "x"  > "_testing/working/build/out"
+    echo "a"  > "_testing/working/example.txt"
+    echo "b" >> "_testing/working/example.txt"
+    echo "c" >> "_testing/working/example.txt"
+
+    mkdir -p "_testing/_repository/build"
+    cp  "_testing/working/.gitignore"  "_testing/_repository/.gitignore"
+    echo "a"      > "_testing/_repository/example.txt"
+    echo "b"     >> "_testing/_repository/example.txt"
+    echo "c new" >> "_testing/_repository/example.txt"
+    echo "in rep" > "_testing/_repository/build/ignore.txt"  #// Main test file
+
+    #// pull command
+    pushd "_testing/working" > /dev/null
+
+    echo  "$ locommit"
+    "../../${LocommitCommand}"  ||  TestError
+
+    echo  "$ locommit pull _repository"
+    "../../${LocommitCommand}" pull "../_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/working/example.txt"  'a\nb\nc new\n'
+    AssertExist     "_testing/working/.commit_before_pull"
+    AssertExist     "_testing/working/.commit_repository"
+    AssertNotExist  "_testing/working/.commit_new"
+    AssertExist     "_testing/working/.commit"
+    AssertNotExist  "_testing/working/.commit_repository/build"
+
+    #// push command
+    pushd "_testing/working" > /dev/null
+    echo  "$ locommit"
+    "../../${LocommitCommand}"  ||  TestError
+    popd > /dev/null
+
+    AssertExist  "_testing/working/.commit_new"
+
+    pushd "_testing/working" > /dev/null
+    echo  "$ locommit push _repository"
+    "../../${LocommitCommand}" push "../_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/_repository/build/ignore.txt"  "in rep"
+    AssertNotExist  "_testing/working/.commit_before_pull"
+    AssertNotExist  "_testing/working/.commit_repository"
+    AssertNotExist  "_testing/working/.commit_new"
     DeleteFolder  "_testing"
 }
 
