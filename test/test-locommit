@@ -128,16 +128,18 @@ function  Test_ChangeAndClone() {
         git commit  -m "Already files exist"  > /dev/null  2>&1
         popd  > /dev/null
 
-        #// Edit files in the working folder
+        #// Edit files in the repository folder
         echo "edited"       > "_testing/repository/edit.txt"
         echo "ignored.txt" >> "_testing/repository/.gitignore"
+        echo "new"          > "_testing/repository/new.txt"
 
     #// Main
     "${LocommitCommand}" clone "_testing/repository" "_testing/a/work"  ||  Error
 
     #// Check
-    if [ "$( cat "_testing/repository/edit.txt" )" != "edited" ]; then  Error  ;fi
+    if [ "$( cat    "_testing/a/work/edit.txt" )" != "edited" ]; then  Error  ;fi
     AssertNotExist  "_testing/a/work/ignored.txt"
+    if [ "$( cat    "_testing/a/work/new.txt" )" != "new" ]; then  Error  ;fi
     rm -rf  "_testing/a/work"
 
     #// Set up

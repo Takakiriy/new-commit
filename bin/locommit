@@ -468,41 +468,21 @@ function  Pull() {
 
 function  CheckIfResetState() {
     local  status="$( git status --short )"
-    if echo  "${status}"  |  grep -E '^[^ ]. [^.]' > /dev/null; then
-        echo  '$ git status --short'
-        echo  "${status}"
-        Error  'ERROR: clone does not supported, when files were git added. You can clone, if you run git reset ".".'
-    fi
-    # M  edit.txt    ... after git add ... Error
-    #  M edit.txt    ... before git add ... OK
-    # M  ../edit.txt ... after git add but out of folder ... OK
-    # M  .hidden.txt ... not out of folder ... Error
-}
-
-function  Test_CheckIfResetState() {
-    echo 'M  edit.txt'    | grep -E '^[^ ]. .[^.]'  ||  Error
-    echo  'M edit.txt'    | grep -E '^[^ ]. .[^.]'  &&  Error
-    echo 'M  ../edit.txt' | grep -E '^[^ ]. .[^.]'  &&  Error
-    echo 'M  .hidden.txt' | grep -E '^[^ ]. .[^.]'  ||  Error
-        # &&: Error if match ... CheckIfResetState is successed.
-        # ||: Error if not match ... CheckIfResetState raises an error.
-}
-
-function  New_CheckIfResetState() {
-    local  status="$( git status --short )"
 
     #// Error, if one or more files are git added
     # M  edit.txt    ... after git add ... Error
     #  M edit.txt    ... before git add ... OK
     # M  ../edit.txt ... after git add but out of folder ... OK
     # M  .hidden.txt ... not out of folder ... Error
-    if echo  "${status}"  |  grep -E '^[^ ]. .[^.]' > /dev/null; then
+    # ?? new.txt     ... untracked ... OK
+    if echo  "${status}"  |  grep -E '^[^ ?]. .[^.]' > /dev/null; then
 
         #// Error, if one or more files are not git added
         # M  edit.txt    ... after git add ... OK
         #  M edit.txt    ... before git add ... Error
         #  M ../edit.txt ... after git add but out of folder ... OK
         #  M .hidden.txt ... not out of folder ... Error
+        # ?? new.txt     ... untracked ... Error
         if echo  "${status}"  |  grep -E '^.[^ ] .[^.]' > /dev/null; then
             echo  '$ git status --short'
             echo  "${status}"
@@ -511,13 +491,14 @@ function  New_CheckIfResetState() {
     fi
 }
 
-function  New_Test_CheckIfResetState() {
+function  Test_CheckIfResetState() {
 
     #// Error, if one or more files are git added
-    echo 'M  edit.txt'    | grep -E '^[^ ]. .[^.]'  ||  Error
-    echo ' M edit.txt'    | grep -E '^[^ ]. .[^.]'  &&  Error
-    echo 'M  ../edit.txt' | grep -E '^[^ ]. .[^.]'  &&  Error
-    echo 'M  .hidden.txt' | grep -E '^[^ ]. .[^.]'  ||  Error
+    echo 'M  edit.txt'    | grep -E '^[^ ?]. .[^.]'  ||  Error
+    echo ' M edit.txt'    | grep -E '^[^ ?]. .[^.]'  &&  Error
+    echo 'M  ../edit.txt' | grep -E '^[^ ?]. .[^.]'  &&  Error
+    echo 'M  .hidden.txt' | grep -E '^[^ ?]. .[^.]'  ||  Error
+    echo '?? new.txt'     | grep -E '^[^ ?]. .[^.]'  &&  Error
         # &&: Error if match ... CheckIfResetState is successed.
         # ||: Error if not match ... CheckIfResetState raises an error.
 
@@ -526,6 +507,7 @@ function  New_Test_CheckIfResetState() {
     echo ' M edit.txt'    | grep -E '^.[^ ] .[^.]'  ||  Error
     echo ' M ../edit.txt' | grep -E '^.[^ ] .[^.]'  &&  Error
     echo ' M .hidden.txt' | grep -E '^.[^ ] .[^.]'  ||  Error
+    echo '?? new.txt'     | grep -E '^.[^ ] .[^.]'  ||  Error
         # &&: Error if match ... CheckIfResetState is successed.
         # ||: Error if not match ... CheckIfResetState raises an error.
 }
