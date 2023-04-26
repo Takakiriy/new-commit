@@ -231,8 +231,6 @@ the contents of `.commit` folder.
 - `.commit_before_pull` folder: Contents of current folder before pull command
 - `.commit_repository` folder: Copy of the latest repository folder
 
-The push command will also delete `.commit_before_pull` folder and `.commit_repository` folder in addition to the normal push command behavior.
-
 The pull command can have conflicts.
 
     $ cd __WorkingDirectory__
@@ -257,6 +255,11 @@ until conflicts are resolved.
         ./example.txt:3: <<<<<<< HEAD
 
 If conflicts were resolved, use the push command.
+The push command will also delete `.commit_before_pull` folder
+and `.commit_repository` folder in addition to the normal push command behavior.
+
+Files in the repository folder specified in the pull command
+that are marked with `.gitignore` will not be merged.
 
 
 ## push command
@@ -281,10 +284,8 @@ and turn off the read-only attribute of the file.
 Also move files in the `.commit_new` folder into the `.commit` folder
 and delete `.commit_new` folder.
 
-If there is no difference between `.commit` and `.commit_new` folders
-(if `.commit_new` folder is not created),
-copy files in `.commit` folder to the `__RepositoryFolderPath__` folder
-and turn off the read-only attribute of the file.
+Files in the `.commit` folder that are no longer in the `.commit_new` folder
+will be deleted in the `__RepositoryFolderPath__` folder.
 
 - Replace `__RepositoryFolderPath__` to the actual folder path
 - Files that there are in `__RepositoryFolderPath__` but not in `.commit_new` folder

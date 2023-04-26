@@ -225,10 +225,6 @@ pull コマンドを実行すると `__RepositoryFolderPath__` フォルダー�
 - .commit_before_pull フォルダー: pull コマンドを実行する前の カレント フォルダー の内容
 - .commit_repository フォルダー: 最新の リポジトリ フォルダー のコピー
 
-push コマンドを使うと、通常の push コマンドの動作の他に、
-`.commit_before_pull` フォルダーと
-`.commit_repository` フォルダーの削除も行われます。
-
 pull コマンドは、コンフリクトが起きることがあります。
 
     $ cd __WorkingDirectory__
@@ -252,6 +248,12 @@ pull コマンドは、コンフリクトが起きることがあります。
         ./example.txt:3: <<<<<<< HEAD
 
 解決したら push コマンドを使います。
+push コマンドを使うと、通常の push コマンドの動作の他に、
+`.commit_before_pull` フォルダーと
+`.commit_repository` フォルダーの削除も行われます。
+
+pull コマンド に指定した リポジトリ フォルダー の中のファイルのうち、
+`.gitignore` の対象になっているファイルはマージされません。
 
 
 ## push コマンド
@@ -275,10 +277,9 @@ push コマンドを実行すると `.commit_new` フォルダーの内容を `_
 また、`.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
 `.commit_new` フォルダーを削除します。
 
-`.commit` フォルダーと `.commit_new` フォルダーに違いがない場合は
-（`.commit_new` フォルダーが作られない場合は）、
-`.commit` フォルダーの内容を `__RepositoryFolderPath__`
-にコピーして、ファイルの読み取り専用属性をオフにします。
+`.commit` フォルダーの中にあるファイルのうち、
+`.commit_new` フォルダーの中から無くなったファイルについては、
+`__RepositoryFolderPath__` フォルダーの中から削除します。
 
 - `__RepositoryFolderPath__` は実際のフォルダーのパスに置き換えてください
 - `__RepositoryFolderPath__` にあったファイルのうち、`.commit_new` フォルダーに無いファイルは

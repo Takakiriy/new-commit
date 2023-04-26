@@ -20,7 +20,7 @@ Test:
             -   git clone https://github.com/Takakiriy/locommit  -b develop
         # set up in WSL
             -   cd  ${HOME}
-            -   mkdir -p  ~/bin/.vscode
+                mkdir -p  ~/bin/.vscode
             -   cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
                 cp  ~/locommit/test/README.yaml          ~/bin/README.yaml
                 cp  ~/locommit/.vscode/launch.json       ~/bin/.vscode/launch.json
@@ -29,6 +29,7 @@ Test:
             -   ~/bin/_locommit-set-up.sh  --transform-to-parent-git
         # test
             -   code  ~/_testing/locommit
+            -   (Close VSCode opening bin)
             -   cd test
             -   ./test-locommit
         # clean
