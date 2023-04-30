@@ -1,5 +1,12 @@
 Test:
+    OS: Windows, macOS, WSL Ubuntu 20.04
     With ".git":
+        WSL:
+            wsl
+            cd  ${HOME}
+            git clone https://github.com/Takakiriy/locommit  -b develop
+            cd __Project__/test
+            ./test-locommit
         Windows:
             bash:
                 VSCode >> Terminal >> Git bash
@@ -14,11 +21,7 @@ Test:
             cd __Project__/test
             ./test-locommit
     With "../.git":
-        # set up WSL
-            -   (Install WSL2 Ubuntu 20.04)
-            -   (PowerShell) >> wsl >> cd $HOME
-            -   git clone https://github.com/Takakiriy/locommit  -b develop
-        # set up in WSL
+        # set up
             -   cd  ${HOME}
                 mkdir -p  ~/bin/.vscode
             -   cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
