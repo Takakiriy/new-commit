@@ -5,10 +5,10 @@ pull command:
             .commit_new/: |  #// Create it
                 (This color describes codes)
                 #// Create ".commit_new" folder
-            .commit_repository/: |  #// Create it
-                #// Create ".commit_repository" folder
-            .commit_before_pull: |  #// Create it
-                #// Create ".commit_before_pull" folder
+            .commit_theirs/: |  #// Create it
+                #// Create ".commit_theirs" folder
+            .commit_ours: |  #// Create it
+                #// Create ".commit_ours" folder
         Make branches:
             (root)/: |  #// git add __Project__
                 #// Add to stage in parent .git, if the parent .git includes current folder.
@@ -16,8 +16,8 @@ pull command:
                 .commit/.git: |  #// git add & git commit   [old .git](currentBranch)
                     git add "."
                     git commit -m "Reverted to .commit contents."  > /dev/null
-                .commit_repository/.git (2): |  #// Copy from .commit/.git  [old(2) .git](currentBranch)
-                    cp -Rap  ".git/{}"  "../.commit_repository/.git"
+                .commit_theirs/.git (2): |  #// Copy from .commit/.git  [old(2) .git](currentBranch)
+                    cp -Rap  ".git/{}"  "../.commit_theirs/.git"
                 (root)/.git: |  #// Move from .commit/.git  [old .git]
                     mv  ".git"  ".."
             else:
@@ -25,13 +25,13 @@ pull command:
                     git init ${GitInitOption}  > /dev/null  ||  Error
                     git add  "."
                     git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
-                .commit_repository/.git (3): |  #// Move from .commit/.git  [old(2) .git](currentBranch)
-                    mv  ".git"  "../.commit_repository" 
-            .commit_repository/.git (4): |  #// Make a branch and commit  [old(2)→others .git](__locommit_commit_repository branch)
-                git checkout -b "__locommit_commit_repository" > /dev/null 2>&1  ||  Error
+                .commit_theirs/.git (3): |  #// Move from .commit/.git  [old(2) .git](currentBranch)
+                    mv  ".git"  "../.commit_theirs" 
+            .commit_theirs/.git (4): |  #// Make a branch and commit  [old(2)→others .git](__locommit_commit_theirs branch)
+                git checkout -b "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
                 git add "." > /dev/null
-                git commit  -m "locommit pull) commit_repository" > /dev/null  #// Ignore this command errors
-            .commit_temporary/.git: |  #// Move from .commit_repository/.git  [others .git]
+                git commit  -m "locommit pull) commit_theirs" > /dev/null  #// Ignore this command errors
+            .commit_temporary/.git: |  #// Move from .commit_theirs/.git  [others .git]
                 mv  ".git"  "../.commit_temporary"
             .commit_temporary/: |  #// Create it
                 #// Change current branch
@@ -40,17 +40,17 @@ pull command:
         Merge:
             (root)/.git (3): |  #// Commit  [old→ours .git](currentBranch)
                 git add "."
-                git commit  -m "locommit pull) commit_before_pull" > /dev/null
+                git commit  -m "locommit pull) commit_ours" > /dev/null
             (root)/.git (4): |  #// Merge  [old→(ours,others) .git](currentBranch)
-                local  mergeLog="$( git merge  "__locommit_commit_repository" --no-edit  2>&1  ||  echo "(ERROR)" )"
+                local  mergeLog="$( git merge  "__locommit_commit_theirs" --no-edit  2>&1  ||  echo "(ERROR)" )"
                 git add  "."
                 git commit  -m "locommit pull) commit_after_merge" > /dev/null
         Clean:
             if others were updated:
-                .commit_before_pull/.git: |  #// Move from .commit/.git
+                .commit_ours/.git: |  #// Move from .commit/.git
                     mv  "../.commit/.git"  "."
                     git add  "."
-                (root)/.git:  #// Move from .commit_before_pull/.git   [old→(ours,others) .git](currentBranch)
-                    mv  ".commit_before_pull/.git"  "."
+                (root)/.git:  #// Move from .commit_ours/.git   [old→(ours,others) .git](currentBranch)
+                    mv  ".commit_ours/.git"  "."
             else:
                 echo  'Pull command did not change any files.'

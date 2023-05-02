@@ -210,32 +210,32 @@ pull コマンドを実行すると `__RepositoryFolderPath__` フォルダー�
 
     $ cd __WorkingDirectory__
     $ locommit pull _repository
-    Created ".commit_repository" folder
-    Renamed ".commit_new" folder to ".commit_before_pull" folder
-    Pull from ".commit_repository" folder
+    Created ".commit_theirs" folder
+    Renamed ".commit_new" folder to ".commit_ours" folder
+    Pull from ".commit_theirs" folder
     Auto-merging example.txt
     Merge made by the 'ort' strategy.
     example.txt | 2 +-
     1 file changed, 1 insertion(+), 1 deletion(-)
-        Files .commit/example.txt and .commit_repository/example.txt differ
+        Files .commit/example.txt and .commit_theirs/example.txt differ
 
 最新の リポジトリ フォルダー の内容が `.commit` フォルダーの内容から変わっていたときは、
-`.commit_before_pull` フォルダーと `.commit_repository` フォルダーが作られます。
+`.commit_ours` フォルダーと `.commit_theirs` フォルダーが作られます。
 
-- .commit_before_pull フォルダー: pull コマンドを実行する前の カレント フォルダー の内容
-- .commit_repository フォルダー: 最新の リポジトリ フォルダー のコピー
+- .commit_ours フォルダー: pull コマンドを実行する前の カレント フォルダー の内容
+- .commit_theirs フォルダー: 最新の リポジトリ フォルダー のコピー
 
 pull コマンドは、コンフリクトが起きることがあります。
 
     $ cd __WorkingDirectory__
     $ locommit pull _repository
-    Created ".commit_repository" folder
-    Renamed ".commit_new" folder to ".commit_before_pull" folder
-    Pull from ".commit_repository" folder
+    Created ".commit_theirs" folder
+    Renamed ".commit_new" folder to ".commit_ours" folder
+    Pull from ".commit_theirs" folder
     Auto-merging example.txt
     CONFLICT (content): Merge conflict in example.txt
     Automatic merge failed; fix conflicts and then commit the result.
-        Files .commit/example.txt and .commit_repository/example.txt differ
+        Files .commit/example.txt and .commit_theirs/example.txt differ
 
 コンフリクトが解決するまで、locommit コマンドは CONFLICT があることを表示します。
 
@@ -249,8 +249,8 @@ pull コマンドは、コンフリクトが起きることがあります。
 
 解決したら push コマンドを使います。
 push コマンドを使うと、通常の push コマンドの動作の他に、
-`.commit_before_pull` フォルダーと
-`.commit_repository` フォルダーの削除も行われます。
+`.commit_ours` フォルダーと
+`.commit_theirs` フォルダーの削除も行われます。
 
 pull コマンド に指定した リポジトリ フォルダー の中のファイルのうち、
 `.gitignore` の対象になっているファイルはマージされません。

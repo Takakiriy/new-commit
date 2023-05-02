@@ -699,7 +699,7 @@ function  Test_Pull_1() {
     echo "build"       >> "_testing/.gitignore"
     mkdir -p "_testing/build"
 
-    echo "x" > "_testing/build/out"
+    echo "x"  > "_testing/build/out"
     echo "a"  > "_testing/example.txt"
     echo "b" >> "_testing/example.txt"
     echo "c" >> "_testing/example.txt"
@@ -724,8 +724,8 @@ function  Test_Pull_1() {
         TestError  "Failed"
     fi
     AssertContents  "_testing/example.txt"  'a\nb\nc new\n'
-    AssertExist     "_testing/.commit_before_pull"
-    AssertExist     "_testing/.commit_repository"
+    AssertExist     "_testing/.commit_ours"
+    AssertExist     "_testing/.commit_theirs"
     AssertNotExist  "_testing/.commit_new"
     AssertExist     "_testing/.commit"
 
@@ -746,8 +746,8 @@ function  Test_Pull_1() {
         TestError  "Failed"
     fi
     AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
-    AssertNotExist  "_testing/.commit_before_pull"
-    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_ours"
+    AssertNotExist  "_testing/.commit_theirs"
     AssertNotExist  "_testing/.commit_new"
     DeleteFolder  "_testing"
 }
@@ -811,8 +811,8 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
         TestError  "Failed"
     fi
     AssertContents  "_testing/example.txt"  'a\nb\nc new\n'
-    AssertNotExist  "_testing/.commit_before_pull"
-    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_ours"
+    AssertNotExist  "_testing/.commit_theirs"
     AssertContents  "_testing/.commit/example.txt"      'a\nb\nc\n'
     AssertContents  "_testing/.commit_new/example.txt"  'a\nb\nc new\n'
 
@@ -827,11 +827,11 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
         TestError  "Failed"
     fi
     AssertContents  "_testing/example.txt"  'a\nb\nc new\n'
-    AssertNotExist  "_testing/.commit_before_pull"
-    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_ours"
+    AssertNotExist  "_testing/.commit_theirs"
     AssertContents  "_testing/.commit/example.txt"      'a\nb\nc\n'
     AssertContents  "_testing/.commit_new/example.txt"  'a\nb\nc new\n'
-    echo "${branches}" | grep " __locommit_commit_repository$"  &&  TestError
+    echo "${branches}" | grep " __locommit_commit_theirs$"  &&  TestError
 
     #// push command
     pushd "_testing" > /dev/null
@@ -851,8 +851,8 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
     fi
     AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
     AssertContents  "_testing/.commit/example.txt"      'a\nb\nc new\n'
-    AssertNotExist  "_testing/.commit_before_pull"
-    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_ours"
+    AssertNotExist  "_testing/.commit_theirs"
     AssertNotExist  "_testing/.commit_new"
     DeleteFolder  "_testing"
 }
@@ -907,8 +907,8 @@ function  Test_Pull_Merge() {
         fi
 
         AssertContents  "_testing/example.txt"  'a new\nb\nc new\n'
-        AssertExist     "_testing/.commit_before_pull"
-        AssertExist     "_testing/.commit_repository"
+        AssertExist     "_testing/.commit_ours"
+        AssertExist     "_testing/.commit_theirs"
         AssertNotExist  "_testing/.commit_new"
         AssertExist     "_testing/.commit"
 
@@ -931,8 +931,8 @@ function  Test_Pull_Merge() {
 
         AssertContents  "_testing/_repository/example.txt"  'a new\nb\nc new\n'
         AssertNotExist  "_testing/.commit_new"
-        AssertNotExist  "_testing/.commit_before_pull"
-        AssertNotExist  "_testing/.commit_repository"
+        AssertNotExist  "_testing/.commit_ours"
+        AssertNotExist  "_testing/.commit_theirs"
     DeleteFolder  "_testing"
 }
 
@@ -993,15 +993,15 @@ function  Test_Pull_Conflict() {
 
         #// Check conflict status
         AssertContents  "_testing/.commit/example.txt"  'a\nb\nc\n'
-        AssertContents  "_testing/.commit_before_pull/example.txt"  'a\nb\nc conflicted\n'
-        AssertContents  "_testing/.commit_repository/example.txt"   'a\nb\nc new\n'
+        AssertContents  "_testing/.commit_ours/example.txt"  'a\nb\nc conflicted\n'
+        AssertContents  "_testing/.commit_theirs/example.txt"   'a\nb\nc new\n'
         grep  "<<<<<<<"  "_testing/example.txt"  > /dev/null  ||  TestError  #// Expected confilcts
         local  result="$(cd _testing  &&  git status --short)"
         echo "${result}" | grep "^UU example.txt$"  > /dev/null  ||  TestError  #// Expected both modified
-        AssertExist     "_testing/.commit_before_pull"
-        AssertExist     "_testing/.commit_repository"
+        AssertExist     "_testing/.commit_ours"
+        AssertExist     "_testing/.commit_theirs"
         AssertNotExist  "_testing/.commit_new"
-        AssertNotExist  "_testing/.commit_repository/build/ignore.txt"
+        AssertNotExist  "_testing/.commit_theirs/build/ignore.txt"
 
     #// Still conflicted (locommit command)
         pushd "_testing" > /dev/null
@@ -1009,9 +1009,9 @@ function  Test_Pull_Conflict() {
             "../${LocommitCommand}"  ||  TestError
         popd > /dev/null
 
-        AssertContents  "_testing/example.txt"  'a\nb\n<<<<<<< HEAD\nc conflicted\n=======\nc new\n>>>>>>> __locommit_commit_repository\n'
-        AssertExist  "_testing/.commit_before_pull"
-        AssertExist  "_testing/.commit_repository"
+        AssertContents  "_testing/example.txt"  'a\nb\n<<<<<<< HEAD\nc conflicted\n=======\nc new\n>>>>>>> __locommit_commit_theirs\n'
+        AssertExist  "_testing/.commit_ours"
+        AssertExist  "_testing/.commit_theirs"
         AssertExist  "_testing/.commit_new"
 
     #// Resolve conflicts (locommit command)
@@ -1026,8 +1026,8 @@ function  Test_Pull_Conflict() {
         popd > /dev/null
 
         AssertContents  "_testing/example.txt"  'a\nb\nc merged\n'
-        AssertExist  "_testing/.commit_before_pull"
-        AssertExist  "_testing/.commit_repository"
+        AssertExist  "_testing/.commit_ours"
+        AssertExist  "_testing/.commit_theirs"
         AssertExist  "_testing/.commit_new"
         AssertContents  "_testing/build/ignore.txt"  "in work"
  
@@ -1039,8 +1039,8 @@ function  Test_Pull_Conflict() {
 
         AssertContents  "_testing/_repository/example.txt"  'a\nb\nc merged\n'
         AssertContents  "_testing/_repository/build/ignore.txt"  "in rep"
-        AssertNotExist  "_testing/.commit_before_pull"
-        AssertNotExist  "_testing/.commit_repository"
+        AssertNotExist  "_testing/.commit_ours"
+        AssertNotExist  "_testing/.commit_theirs"
         AssertNotExist  "_testing/.commit_new"
     DeleteFolder  "_testing"
 }
@@ -1084,11 +1084,11 @@ function  Test_Pull_IgnoreInRepository() {  #// Base test is "Test_Pull_1"
         TestError  "Failed"
     fi
     AssertContents  "_testing/working/example.txt"  'a\nb\nc new\n'
-    AssertExist     "_testing/working/.commit_before_pull"
-    AssertExist     "_testing/working/.commit_repository"
+    AssertExist     "_testing/working/.commit_ours"
+    AssertExist     "_testing/working/.commit_theirs"
     AssertNotExist  "_testing/working/.commit_new"
     AssertExist     "_testing/working/.commit"
-    AssertNotExist  "_testing/working/.commit_repository/build"
+    AssertNotExist  "_testing/working/.commit_theirs/build"
 
     #// push command
     pushd "_testing/working" > /dev/null
@@ -1108,8 +1108,8 @@ function  Test_Pull_IgnoreInRepository() {  #// Base test is "Test_Pull_1"
     fi
     AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
     AssertContents  "_testing/_repository/build/ignore.txt"  "in rep"
-    AssertNotExist  "_testing/working/.commit_before_pull"
-    AssertNotExist  "_testing/working/.commit_repository"
+    AssertNotExist  "_testing/working/.commit_ours"
+    AssertNotExist  "_testing/working/.commit_theirs"
     AssertNotExist  "_testing/working/.commit_new"
     DeleteFolder  "_testing"
 }
@@ -1165,8 +1165,8 @@ function  Test_Pull_Push_InWorkingSubDirectory() {
     "../../${LocommitCommand}" pull "../repository"  ||  TestError
     popd  > /dev/null
     AssertContents  "_testing/project/.commit/example.txt"  '2\n'
-    AssertContents  "_testing/project/.commit_before_pull/example.txt"  '2\n'
-    AssertContents  "_testing/project/.commit_repository/example.txt"   'r\n'
+    AssertContents  "_testing/project/.commit_ours/example.txt"  '2\n'
+    AssertContents  "_testing/project/.commit_theirs/example.txt"   'r\n'
     DeleteFolder  "_testing"
 }
 
@@ -1241,8 +1241,8 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     echo  "$ locommit pull _repository"
     "../${LocommitCommand}" pull  "_repository"  ||  TestError
     popd  > /dev/null
-    AssertContents  "_testing/.commit_before_pull/example.txt"  'a new\nb\nc\n'
-    AssertContents  "_testing/.commit_repository/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/.commit_ours/example.txt"  'a new\nb\nc\n'
+    AssertContents  "_testing/.commit_theirs/example.txt"  'a\nb\nc new\n'
     AssertContents  "_testing/example.txt"  'a new\nb\nc new\n'
     AssertNotExist  "_testing/.commit_new"
 
@@ -1251,8 +1251,8 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     echo  "$ locommit"
     "../${LocommitCommand}"  ||  TestError
     popd  > /dev/null
-    AssertContents  "_testing/.commit_before_pull/example.txt"  'a new\nb\nc\n'
-    AssertContents  "_testing/.commit_repository/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/.commit_ours/example.txt"  'a new\nb\nc\n'
+    AssertContents  "_testing/.commit_theirs/example.txt"  'a\nb\nc new\n'
     AssertContents  "_testing/example.txt"  'a new\nb\nc new\n'
     AssertContents  "_testing/.commit_new/example.txt"  'a new\nb\nc new\n'
 
@@ -1261,8 +1261,8 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     echo  "$ locommit push _repository"
     "../${LocommitCommand}" push  "_repository"  ||  TestError
     popd  > /dev/null
-    AssertNotExist  "_testing/.commit_before_pull"
-    AssertNotExist  "_testing/.commit_repository"
+    AssertNotExist  "_testing/.commit_ours"
+    AssertNotExist  "_testing/.commit_theirs"
     AssertNotExist  "_testing/.commit_new"
 
     #// Check if the reporitory is not added a commit

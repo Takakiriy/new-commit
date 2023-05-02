@@ -269,8 +269,8 @@ function  Push() {
         rm -rf  ".commit"
         mv  ".commit_new"  ".commit"
     fi
-    rm -rf ".commit_before_pull"
-    rm -rf ".commit_repository"
+    rm -rf ".commit_ours"
+    rm -rf ".commit_theirs"
 
     #// git commit
     if [ -e ".git" ]; then
@@ -282,12 +282,18 @@ function  Push() {
 }
 
 function  Pull() {
+    #   *   4 (pulled)
+    #   |\
+    #   | * 3 _repository
+    #   * | 2 .commit_new
+    #   |/
+    #   *   1 .commit
     local  repositoryFolderPath_=$( ResolvePath "$1"  || echo "(ERROR)" )
     local  repositoryFolderPath="$( CutLastOf "${repositoryFolderPath_}" "/"  || echo "(ERROR)" )"
     ErrorIfLastIs  "${repositoryFolderPath_}"  "(ERROR)"
     ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
     if [ "${repositoryFolderPath}" == "" ]; then
-        Error  "No main folder  Command: locommit pull __RepositoryFolderPath__"
+        Error  "Not specified repository folder.  Expected command: locommit pull __RepositoryFolderPath__"
     fi
     AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
@@ -304,8 +310,8 @@ function  Pull() {
         fi
     fi
 
-    #// Create ".commit_repository" folder
-    #// ".commit_repository" is a copy of a folder in related repository at
+    #// Create ".commit_theirs" folder
+    #// ".commit_theirs" is a copy of a folder in related repository at
     #// "repositoryFolderPath", minus the files covered by ".gitignore".
         AssertNotExist  "${repositoryFolderPath}/.commit_new"
         local  thereIsRepositoryCommit=${False}
@@ -313,35 +319,35 @@ function  Pull() {
             thereIsRepositoryCommit=${True}
         fi
 
-        #// Create ".commit_repository" folder
-        rm -rf  ".commit_repository"
+        #// Create ".commit_theirs" folder
+        rm -rf  ".commit_theirs"
         pushd  "${repositoryFolderPath}" > /dev/null
 
         NewCommit --no-git > /dev/null
         popd > /dev/null
         if [ -e "${repositoryFolderPath}/.commit_new" ]; then
-            mv  "${repositoryFolderPath}/.commit_new"  ".commit_repository"
+            mv  "${repositoryFolderPath}/.commit_new"  ".commit_theirs"
         else
             if [ "${thereIsRepositoryCommit}" == "${True}" ]; then
-                CopyFolder  "${repositoryFolderPath}/.commit"  ".commit_repository"
+                CopyFolder  "${repositoryFolderPath}/.commit"  ".commit_theirs"
             else
-                mv  "${repositoryFolderPath}/.commit"  ".commit_repository"
+                mv  "${repositoryFolderPath}/.commit"  ".commit_theirs"
             fi
         fi
-        echo  "Copied a repository folder to \".commit_repository\" folder"
+        echo  "Copied a repository folder to \".commit_theirs\" folder"
 
-    #// Create ".commit_before_pull" folder
+    #// Create ".commit_ours" folder
     if [ "${source}" == ".commit_new" ]; then
-        rm -rf  ".commit_before_pull"
-        mv  ".commit_new"  ".commit_before_pull"
-        echo  "Renamed \".commit_new\" folder to \".commit_before_pull\" folder"
+        rm -rf  ".commit_ours"
+        mv  ".commit_new"  ".commit_ours"
+        echo  "Renamed \".commit_new\" folder to \".commit_ours\" folder"
     else
-        rm -rf    ".commit_before_pull"
-        mkdir -p  ".commit_before_pull"
+        rm -rf    ".commit_ours"
+        mkdir -p  ".commit_ours"
         ls -a ".commit" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
-            cp -Rap  ".commit/{}"  ".commit_before_pull"
-        rm -rf  ".commit_before_pull/.git"
-        echo  "Copied \".commit\" folder to \".commit_before_pull\" folder"
+            cp -Rap  ".commit/{}"  ".commit_ours"
+        rm -rf  ".commit_ours/.git"
+        echo  "Copied \".commit\" folder to \".commit_ours\" folder"
     fi
 
     #// Add to stage in parent .git, if the parent .git includes current folder. 
@@ -352,7 +358,7 @@ function  Pull() {
     fi
 
     #// Make a ".git" folder that has "commit_reposiroty" branch
-    echo  "Pull from \".commit_repository\" folder"
+    echo  "Pull from \".commit_theirs\" folder"
     local  currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
     ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
 
@@ -375,9 +381,9 @@ function  Pull() {
                 fi
             fi
 
-            mkdir -p  "../.commit_repository/.git"
+            mkdir -p  "../.commit_theirs/.git"
             ls -a ".git" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
-                cp -Rap  ".git/{}"  "../.commit_repository/.git"
+                cp -Rap  ".git/{}"  "../.commit_theirs/.git"
             mv  ".git"  ".."
         else
             git init ${GitInitOption}  > /dev/null  ||  Error
@@ -387,22 +393,22 @@ function  Pull() {
             git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
             currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
             ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
-            mkdir -p  "../.commit_repository"
-            mv  ".git"  "../.commit_repository"            
+            mkdir -p  "../.commit_theirs"
+            mv  ".git"  "../.commit_theirs"            
         fi
 
     #// Make the repository branch
-        cd  "../.commit_repository"
+        cd  "../.commit_theirs"
         local  reposirotyBranchExists="${False}"
-        git branch | grep "__locommit_commit_repository" > /dev/null 2>&1  &&  reposirotyBranchExists="${True}"
+        git branch | grep "__locommit_commit_theirs" > /dev/null 2>&1  &&  reposirotyBranchExists="${True}"
         if [ "${reposirotyBranchExists}" == "${True}" ]; then
-            git branch -D "__locommit_commit_repository" > /dev/null 2>&1  ||  Error
+            git branch -D "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
         fi
-        git checkout -b "__locommit_commit_repository" > /dev/null 2>&1  ||  Error
+        git checkout -b "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
         git add "." > /dev/null
-        git commit  -m "locommit pull) commit_repository" > /dev/null  #// Ignore this command errors
+        git commit  -m "locommit pull) commit_theirs" > /dev/null  #// Ignore this command errors
         local  oldCommitID=$( git rev-parse --short "${currentBranch}"  || echo "(ERROR)" )
-        local  othersCommitID=$( git rev-parse --short __locommit_commit_repository  || echo "(ERROR)" )
+        local  othersCommitID=$( git rev-parse --short __locommit_commit_theirs  || echo "(ERROR)" )
         ErrorIfLastIs  "${oldCommitID}"  "(ERROR)"
         ErrorIfLastIs  "${othersCommitID}"  "(ERROR)"
         mkdir -p "../.commit_temporary"
@@ -419,50 +425,50 @@ function  Pull() {
     popd > /dev/null
 
     #// Merge
-    #// source: ".commit_repository" folder
+    #// source: ".commit_theirs" folder
     #// destination: current folder
     if [ "${source}" == ".commit_new" ]; then
         git add "."
-        git commit  -m "locommit pull) commit_before_pull" > /dev/null
+        git commit  -m "locommit pull) commit_ours" > /dev/null
     fi
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
 
-        local  mergeLog="$( git merge  "__locommit_commit_repository" --no-edit  2>&1  ||  echo "(ERROR)" )"
+        local  mergeLog="$( git merge  "__locommit_commit_theirs" --no-edit  2>&1  ||  echo "(ERROR)" )"
         if echo "${mergeLog}" | grep "Abort."; then
             echo "${mergeLog}"
-            Error  "failed: git merge .commit_repository"
+            Error  "failed: git merge .commit_theirs"
         fi
     fi
     if [ "${parentDotGit}" == "${True}" ]; then
         rm -rf  ".git"
     else
-        git branch -D  "__locommit_commit_repository"  > /dev/null
+        git branch -D  "__locommit_commit_theirs"  > /dev/null
     fi
 
     #// Restore .git folder and stage before pull files
     if [ "${othersCommitID}" != "${oldCommitID}" ]; then
         if [ -e ".commit/.git" ]; then
-            cd  ".commit_before_pull"
+            cd  ".commit_ours"
             mv  "../.commit/.git"  "."
             git add  "."
             cd  ".."
-            mv  ".commit_before_pull/.git"  "."
+            mv  ".commit_ours/.git"  "."
         fi
 
         #// Diff
-        local  diff_output="$( diff -qr  ".commit"  ".commit_repository" )"
+        local  diff_output="$( diff -qr  ".commit"  ".commit_theirs" )"
         ErrorIfLastIs  "${diff_output}"  "(ERROR)"
         echo  "Updated files by this merge from others:"
         EchoWithIndent  "${diff_output}"  "    "
     else
-        echo  'Renamed \".commit_before_pull\" folder to \".commit_new\" folder'
-        echo  'Deleted \".commit_repository\" folder'
+        echo  'Renamed \".commit_ours\" folder to \".commit_new\" folder'
+        echo  'Deleted \".commit_theirs\" folder'
         echo  'Pull command did not change any files.'
         if [ -e ".commit/.git" ]; then
             mv  ".commit/.git"  "."
         fi
-        mv  ".commit_before_pull"  ".commit_new"
-        rm -rf  ".commit_repository"
+        mv  ".commit_ours"  ".commit_new"
+        rm -rf  ".commit_theirs"
     fi
 }
 

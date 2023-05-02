@@ -215,33 +215,33 @@ The pull command merges the contents of
 
     $ cd __WorkingDirectory__
     $ locommit pull _repository
-    Created ".commit_repository" folder
-    Renamed ".commit_new" folder to ".commit_before_pull" folder
-    Pull from ".commit_repository" folder
+    Created ".commit_theirs" folder
+    Renamed ".commit_new" folder to ".commit_ours" folder
+    Pull from ".commit_theirs" folder
     Auto-merging example.txt
     Merge made by the 'ort' strategy.
     example.txt | 2 +-
     1 file changed, 1 insertion(+), 1 deletion(-)
-        Files .commit/example.txt and .commit_repository/example.txt differ
+        Files .commit/example.txt and .commit_theirs/example.txt differ
 
-`.commit_before_pull` folder and `.commit_repository` folder are created,
+`.commit_ours` folder and `.commit_theirs` folder are created,
 when the contents of the latest repository folder were changed from
 the contents of `.commit` folder.
 
-- `.commit_before_pull` folder: Contents of current folder before pull command
-- `.commit_repository` folder: Copy of the latest repository folder
+- `.commit_ours` folder: Contents of current folder before pull command
+- `.commit_theirs` folder: Copy of the latest repository folder
 
 The pull command can have conflicts.
 
     $ cd __WorkingDirectory__
     $ locommit pull _repository
-    Created ".commit_repository" folder
-    Renamed ".commit_new" folder to ".commit_before_pull" folder
-    Pull from ".commit_repository" folder
+    Created ".commit_theirs" folder
+    Renamed ".commit_new" folder to ".commit_ours" folder
+    Pull from ".commit_theirs" folder
     Auto-merging example.txt
     CONFLICT (content): Merge conflict in example.txt
     Automatic merge failed; fix conflicts and then commit the result.
-        Files .commit/example.txt and .commit_repository/example.txt differ
+        Files .commit/example.txt and .commit_theirs/example.txt differ
 
 The locommit command will show CONFLICT(s) warning
 until conflicts are resolved.
@@ -255,8 +255,8 @@ until conflicts are resolved.
         ./example.txt:3: <<<<<<< HEAD
 
 If conflicts were resolved, use the push command.
-The push command will also delete `.commit_before_pull` folder
-and `.commit_repository` folder in addition to the normal push command behavior.
+The push command will also delete `.commit_ours` folder
+and `.commit_theirs` folder in addition to the normal push command behavior.
 
 Files in the repository folder specified in the pull command
 that are marked with `.gitignore` will not be merged.
