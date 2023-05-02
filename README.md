@@ -262,6 +262,36 @@ Files in the repository folder specified in the pull command
 that are marked with `.gitignore` will not be merged.
 
 
+## pull-base command
+
+```mermaid
+graph RL;
+    r[ Base project in a repository ] -- git pull or git merge --> c[ Current folder ];
+    r -- copy --> b[ Copy of base project ];
+```
+
+The pull-base command merges the updates of the base project
+that copy exists in current folder project.
+The base project is just a copy and it is not used in current folder project.
+
+    cd __WorkingDirectory__
+    locommit pull-base  _base  __BaseRepositoryFolderPath__
+
+When you run the pull-base command, the current folder is merged
+the difference between the contents of
+`_base` folder and `__BaseRepositoryFolderPath__` folder,
+and replacing the contents of `_base` folder with `__BaseRepositoryFolderPath__` folder.
+
+When the contents of the latest repository folder have changed from the contents of
+`_base` folder, `.commit_old_ours` and `.commit_old_base` folders will be created.
+
+- `.commit_old_ours` folder: Contents of current folder before pull-base command
+- `.commit_old_base` folder: Contents of `_base` folder before pull-base command
+
+Files in the `.commit` folder that are no longer in the `.commit_old_ours` folder
+will be deleted in the `.commit_old_base` folder.
+
+
 ## push command
 
 ```mermaid

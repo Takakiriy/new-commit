@@ -37,6 +37,9 @@ function  AllTest() {
     Test_Pull_IgnoreInRepository
     Test_Pull_Push_InWorkingSubDirectory
     Test_Pull_Push_TargetInWorkingDirectory
+    Test_PullBase_1
+    Test_PullBase_NoInput
+    Test_PullBase_Conflict
     EndOfTest
 }
 
@@ -949,6 +952,7 @@ function  Test_Pull_Conflict() {
     echo "build"       >> "_testing/.gitignore"
     echo ".DS_Store"   >> "_testing/.gitignore"
     mkdir -p "_testing/build"
+    mkdir -p "_testing/_repository/build"
 
     echo "x" > "_testing/build/out"
     echo "a"  > "_testing/example.txt"
@@ -956,7 +960,6 @@ function  Test_Pull_Conflict() {
     echo "c" >> "_testing/example.txt"
     echo "in work" > "_testing/build/ignore.txt"  #// ignore test case
 
-    mkdir -p "_testing/_repository/build"
     cp  "_testing/.gitignore"  "_testing/_repository/.gitignore"
     echo "a"      > "_testing/_repository/example.txt"
     echo "b"     >> "_testing/_repository/example.txt"
@@ -1269,6 +1272,231 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     local  result="$(cd _testing/_repository  &&  git diff)"
     echo  "${result}" | grep "\-a"      > /dev/null  ||  TestError
     echo  "${result}" | grep  "+a new"  > /dev/null  ||  TestError
+    DeleteFolder  "_testing"
+}
+
+function  Test_PullBase_1() {  #// Base test is "Test_Pull_1"
+    echo ""
+    echo "### Test_PullBase_1"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+    mkdir -p "_testing/_base"
+
+    echo "x"      > "_testing/build/out"
+    echo "a"      > "_testing/example.txt"
+    echo "b"      > "_testing/_base/base_update.txt"
+    echo "w"      > "_testing/_base/work_update.txt"
+    AssertNotExist  "_testing/_base/_base/work_update.txt"
+    echo "b"      > "_testing/base_update.txt"
+    echo "w"      > "_testing/work_update.txt"
+
+    mkdir -p "_testing/_repository/_base"
+    echo "b new"  > "_testing/_repository/base_update.txt"
+    echo "w"      > "_testing/_repository/work_update.txt"
+    echo "b old"  > "_testing/_repository/_base/base_update.txt"
+    echo "w old"  > "_testing/_repository/_base/work_update.txt"
+
+    #// pull command
+    pushd "_testing" > /dev/null
+
+    echo  "$ locommit    #// make a .commit folder"
+    "../${LocommitCommand}"  ||  TestError
+
+    echo  "$ edit  work_update.txt"
+    echo  "w new"  > "work_update.txt"
+
+    echo  "$ locommit pull-base _base _repository"
+    "../${LocommitCommand}" pull-base  "_base"  "_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/example.txt"  'a'
+    AssertContents  "_testing/base_update.txt"  'b new'
+    AssertContents  "_testing/work_update.txt"  'w new'
+    AssertContents  "_testing/_base/base_update.txt"  'b new'
+    AssertContents  "_testing/_base/work_update.txt"  'w'
+    AssertExist     "_testing/.commit_old_ours"
+    AssertExist     "_testing/.commit_old_base"
+    AssertExist     "_testing/_base"
+    AssertNotExist  "_testing/.commit_new"
+    AssertExist     "_testing/.commit"
+    DeleteFolder  "_testing"
+}
+
+function  Test_PullBase_NoInput() {  #// Base tests are "Test_PullBase_1" and "Test_Pull_NoInput"
+    echo  ""
+    echo  "### Test_PullBase_NoInput"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+    mkdir -p "_testing/_base"
+
+    echo "x"      > "_testing/build/out"
+    echo "a"      > "_testing/example.txt"
+    echo "b"      > "_testing/_base/base_no_update.txt"
+    echo "w"      > "_testing/_base/work_update.txt"
+    AssertNotExist  "_testing/_base/_base/work_update.txt"
+    echo "b"      > "_testing/base_no_update.txt"
+    echo "w"      > "_testing/work_update.txt"
+
+    mkdir -p "_testing/_repository/_base"
+    echo "b"      > "_testing/_repository/base_no_update.txt"
+    echo "w"      > "_testing/_repository/work_update.txt"
+    echo "b old"  > "_testing/_repository/_base/base_update.txt"
+    echo "w old"  > "_testing/_repository/_base/work_update.txt"
+
+    #// pull command
+    pushd "_testing" > /dev/null
+
+    echo  "$ locommit    #// make a .commit folder"
+    "../${LocommitCommand}"  ||  TestError
+
+    echo  "$ edit  work_update.txt"
+    echo  "w new"  > "work_update.txt"
+
+    echo  "$ locommit pull-base _base _repository"
+    "../${LocommitCommand}" pull-base  "_base"  "_repository"
+    local  exitCode=$?
+    local  branches="$( git branch )"
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/example.txt"  'a'
+    AssertContents  "_testing/base_no_update.txt"  'b'
+    AssertContents  "_testing/work_update.txt"  'w new'
+    AssertContents  "_testing/_base/base_no_update.txt"  'b'
+    AssertContents  "_testing/_base/work_update.txt"  'w'
+    AssertNotExist  "_testing/.commit_old_ours"
+    AssertNotExist  "_testing/.commit_old_base"
+    AssertContents  "_testing/.commit_new/work_update.txt"  'w new'
+    echo "${branches}" | grep " __locommit_commit_theirs$"  &&  TestError
+
+    #// second pull command (It requests no error)
+    pushd "_testing" > /dev/null
+
+    echo  "$ locommit pull-base _base _repository"
+    "../${LocommitCommand}" pull-base  "_base"  "_repository"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    DeleteFolder  "_testing"
+}
+
+function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "Test_Pull_Conflict"
+    echo  ""
+    echo  "### Test_PullBase_Conflict"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo ".commit"      > "_testing/.gitignore"
+    echo ".commit_*"   >> "_testing/.gitignore"
+    echo "_repository" >> "_testing/.gitignore"
+    echo "build"       >> "_testing/.gitignore"
+    echo ".DS_Store"   >> "_testing/.gitignore"
+    mkdir -p "_testing/build"
+    mkdir -p "_testing/_base2"
+    mkdir -p "_testing/_repository/build"
+
+    echo "x" > "_testing/build/out"
+    echo "a"       > "_testing/example.txt"
+    echo "b"       > "_testing/_base2/both_update.txt"
+    echo "b now"   > "_testing/both_update.txt"
+    echo "in work" > "_testing/build/ignore.txt"  #// ignore test case
+
+    echo "in rep"  > "_testing/_repository/both_update.txt"
+    echo "in rep"  > "_testing/_repository/build/ignore.txt"  #// ignore test case
+
+    #// pull command
+        pushd "_testing" > /dev/null
+
+        echo  "$ locommit    #// make a .commit folder"
+        "../${LocommitCommand}"  ||  TestError
+
+        echo  "$ edit  both_update.txt"
+        echo  "in work"  > "both_update.txt"
+
+        echo  "$ locommit pull-base _base2 _repository"
+        "../${LocommitCommand}" pull-base  "_base2"  "_repository"
+        local  exitCode=$?
+        popd > /dev/null
+        if [ "${exitCode}" != "0" ]; then
+            TestError  "Failed"
+        fi
+
+    #// Check conflict status
+        AssertContents  "_testing/.commit/example.txt"  'a'
+        AssertContents  "_testing/.commit_old_ours/both_update.txt"  'in work'
+        AssertContents  "_testing/.commit_old_base/both_update.txt"  'b'
+        AssertContents  "_testing/_base2/both_update.txt"  'in rep'
+        grep  "<<<<<<<"  "_testing/both_update.txt"  > /dev/null  ||  TestError  #// Expected confilcts
+        local  result="$(cd _testing  &&  git status --short)"
+        echo "${result}" | grep "^UU both_update.txt$"  > /dev/null  ||  TestError  #// Expected both modified
+        AssertExist     "_testing/.commit_old_ours"
+        AssertExist     "_testing/.commit_old_base"
+        AssertNotExist  "_testing/.commit_new"
+        AssertNotExist  "_testing/_base2/build/ignore.txt"
+        AssertExist     "_testing/build/ignore.txt"
+
+    #// Still conflicted (locommit command)
+        pushd "_testing" > /dev/null
+            echo  "$ locommit"
+            "../${LocommitCommand}"  ||  TestError
+        popd > /dev/null
+
+        AssertContents  "_testing/both_update.txt"  '<<<<<<< HEAD\nin work\n=======\nin rep\n>>>>>>> __locommit_commit_theirs\n'
+        AssertExist  "_testing/.commit_old_ours"
+        AssertExist  "_testing/.commit_old_base"
+        AssertExist  "_testing/.commit_new"
+
+    #// Resolve conflicts (locommit command)
+        pushd "_testing" > /dev/null
+            echo "merged"  > "both_update.txt"
+            echo  "Resolved."
+
+            echo  "$ locommit"
+            "../${LocommitCommand}"  ||  TestError
+        popd > /dev/null
+
+        AssertContents  "_testing/both_update.txt"  'merged'
+        AssertContents  "_testing/_base2/both_update.txt"  "in rep"
+        AssertExist  "_testing/.commit_old_ours"
+        AssertExist  "_testing/.commit_old_base"
+        AssertExist  "_testing/.commit_new"
+        AssertContents  "_testing/build/ignore.txt"  "in work"
+
+    #// push command
+        pushd "_testing" > /dev/null
+            mkdir -p  "_my_repository"
+            echo  "$ locommit push _my_repository"
+            "../${LocommitCommand}" push  "_my_repository"  ||  TestError
+        popd > /dev/null
+
+        AssertContents  "_testing/both_update.txt"  'merged'
+        AssertContents  "_testing/.commit/both_update.txt"  'merged'
+        AssertContents  "_testing/_my_repository/both_update.txt"  'merged'
+        AssertContents  "_testing/_my_repository/_base2/both_update.txt"  "in rep"
+        AssertNotExist  "_testing/.commit_old_ours"
+        AssertNotExist  "_testing/.commit_old_base"
+        AssertNotExist  "_testing/.commit_new"
     DeleteFolder  "_testing"
 }
 

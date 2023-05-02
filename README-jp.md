@@ -256,6 +256,37 @@ pull コマンド に指定した リポジトリ フォルダー の中のフ�
 `.gitignore` の対象になっているファイルはマージされません。
 
 
+## pull-base コマンド
+
+```mermaid
+graph RL;
+    r[ リポジトリの中のベースのプロジェクト ] -- git pull or git merge --> c[ カレント フォルダー ];
+    r -- copy --> b[ ベースのプロジェクトのコピー ];
+```
+
+pull-base コマンドは、プロジェクトのベースとしたプロジェクトのコピーがプロジェクトの中にあるとき、
+そのベースとしたプロジェクトの更新をマージします。
+ベースのプロジェクトは単なるコピーであり、カレント フォルダー のプロジェクトには使われません。
+
+    cd __WorkingDirectory__
+    locommit pull-base  _base  __BaseRepositoryFolderPath__
+
+pull-base コマンドを実行すると `_base` フォルダーの内容から
+`__BaseRepositoryFolderPath__` フォルダーの内容の差分を
+カレント フォルダー にマージし、
+`_base` フォルダーの内容を `__BaseRepositoryFolderPath__` フォルダーの内容に置き換えます。
+
+最新の リポジトリ フォルダー の内容が `_base` フォルダーの内容から変わっていたときは、
+`.commit_old_ours` フォルダーと `.commit_old_base` フォルダーが作られます。
+
+- .commit_old_ours フォルダー: pull-base コマンドを実行する前の カレント フォルダー の内容
+- .commit_old_base フォルダー: pull-base コマンドを実行する前の `_base` フォルダー の内容
+
+push コマンドを使うと、通常の push コマンドの動作の他に、
+`.commit_old_ours` フォルダーと
+`.commit_old_base` フォルダーの削除も行われます。
+
+
 ## push コマンド
 
 ```mermaid

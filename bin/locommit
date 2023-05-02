@@ -4,27 +4,30 @@ function  Main() {
     local  subCommand="$1"
     AssertInstalled  "git"
     if [ "${subCommand}" == "" ]; then
-        NewCommit
+        LocalCommit
     elif [ "${subCommand:0:1}" == "-" ]; then
-        NewCommit  "$@"
+        LocalCommit  "$@"
     elif [ "${subCommand}" == "clone" ]; then
         shift
         Clone  "$@"
     elif [ "${subCommand}" == "status" ]; then
         shift
-        NewCommit  "$@"
+        LocalCommit  "$@"
     elif [ "${subCommand}" == "push" ]; then
         shift
         Push  "$@"
     elif [ "${subCommand}" == "pull" ]; then
         shift
         Pull  "$@"
+    elif [ "${subCommand}" == "pull-base" ]; then
+        shift
+        PullBase  "$@"
     else
         Error  "ERROR: Unknown sub command \"${subCommand}\""
     fi
 }
 
-function  NewCommit() {
+function  LocalCommit() {
     local  option="$1"
     local  noGitOption="${False}"
     if [ "${option}" == "--no-git" ]; then
@@ -222,7 +225,7 @@ function  Push() {
 
     #// (.commit case) Check no update
     if [ "${source}" == ".commit" ]; then
-        NewCommit > /dev/null
+        LocalCommit > /dev/null
         if [ -e ".commit_new" ]; then
             rm -rf  ".commit_new"
             Error  "push command requires .commit_new folder, if update file exists. Run locommit command."
@@ -271,6 +274,8 @@ function  Push() {
     fi
     rm -rf ".commit_ours"
     rm -rf ".commit_theirs"
+    rm -rf ".commit_old_ours"
+    rm -rf ".commit_old_base"
 
     #// git commit
     if [ -e ".git" ]; then
@@ -288,13 +293,22 @@ function  Pull() {
     #   * | 2 .commit_new
     #   |/
     #   *   1 .commit
-    local  repositoryFolderPath_=$( ResolvePath "$1"  || echo "(ERROR)" )
+    PullSub  "$1"  --pull
+}
+
+function  PullSub() {
+    local  repositoryFolderPath_="$1"
+    local  option="$2"  #// "--pull" or "--pull-base"
+    local  baseFolderRelativePath="$3"  #// This is enabled if option == "--pull-base"
+    local  repositoryFolderPath_=$( ResolvePath "${repositoryFolderPath_}"  || echo "(ERROR)" )
     local  repositoryFolderPath="$( CutLastOf "${repositoryFolderPath_}" "/"  || echo "(ERROR)" )"
     ErrorIfLastIs  "${repositoryFolderPath_}"  "(ERROR)"
     ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
     if [ "${repositoryFolderPath}" == "" ]; then
         Error  "Not specified repository folder.  Expected command: locommit pull __RepositoryFolderPath__"
     fi
+    if [ "${baseFolderRelativePath:0:2}" == ".." ]; then  Error;  fi
+    if [ "${baseFolderRelativePath:0:1}" == "/" ]; then  Error;  fi
     AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
     local  source=".commit_new"
@@ -304,10 +318,14 @@ function  Pull() {
 
     #// Create ".commit_new" folder
     if [ "${source}" == ".commit" ]; then
-        NewCommit > /dev/null
+        echo  'Created new ".commit_new" folder.'
+        LocalCommit > /dev/null
         if [ -e ".commit_new" ]; then
             source=".commit_new"
         fi
+    fi
+    if [ "${option}" == "--pull-base" ]; then
+        rm -rf  "${source}/${baseFolderRelativePath}"
     fi
 
     #// Create ".commit_theirs" folder
@@ -323,7 +341,7 @@ function  Pull() {
         rm -rf  ".commit_theirs"
         pushd  "${repositoryFolderPath}" > /dev/null
 
-        NewCommit --no-git > /dev/null
+        LocalCommit --no-git > /dev/null
         popd > /dev/null
         if [ -e "${repositoryFolderPath}/.commit_new" ]; then
             mv  "${repositoryFolderPath}/.commit_new"  ".commit_theirs"
@@ -373,7 +391,11 @@ function  Pull() {
             if [ "${clean}" == "${False}" ]; then
                 git add "."
                 git commit -m "Reverted to .commit contents."  > /dev/null
-                echo  "Added a commit that reverted to .commit contents."
+                if [ "${option}" == "--pull" ]; then
+                    echo  "Added a commit of \".commit\" contents."
+                else
+                    echo  "Added a commit of old \"${baseFolderRelativePath}\" contents."
+                fi
                 if [ "$(git status --short)" != "" ]; then
                     mv  ".git"  ".."
                     popd  > /dev/null
@@ -405,6 +427,9 @@ function  Pull() {
             git branch -D "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
         fi
         git checkout -b "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
+        if [ "${option}" == "--pull-base" ]; then
+            rm -rf  "${baseFolderRelativePath}"
+        fi
         git add "." > /dev/null
         git commit  -m "locommit pull) commit_theirs" > /dev/null  #// Ignore this command errors
         local  oldCommitID=$( git rev-parse --short "${currentBranch}"  || echo "(ERROR)" )
@@ -457,12 +482,23 @@ function  Pull() {
 
         #// Diff
         local  diff_output="$( diff -qr  ".commit"  ".commit_theirs" )"
+        if [ "${option}" == "--pull-base" ]; then
+            echo  "Renamed \".commit\" folder to \".commit_old_base\" folder"
+            echo  "Renamed \".commit_theirs\" folder to new \"${baseFolderPath}\" folder"
+            diff_output="$( echo "${diff_output}"  |
+                sed -E 's|.commit/|.commit_old_base/|g'  |
+                sed -E 's|.commit_theirs/|new _base/|g'  )"
+        fi
         ErrorIfLastIs  "${diff_output}"  "(ERROR)"
-        echo  "Updated files by this merge from others:"
+        if [ "${option}" == "--pull" ]; then
+            echo  "Updated files by this merge from \".commit_theirs\" folder:"
+        else
+            echo  "Updated files by this merge from new \"${baseFolderPath}\" folder:"
+        fi
         EchoWithIndent  "${diff_output}"  "    "
     else
-        echo  'Renamed \".commit_ours\" folder to \".commit_new\" folder'
-        echo  'Deleted \".commit_theirs\" folder'
+        echo  'Renamed ".commit_ours" folder to ".commit_new" folder'
+        echo  'Deleted ".commit_theirs" folder'
         echo  'Pull command did not change any files.'
         if [ -e ".commit/.git" ]; then
             mv  ".commit/.git"  "."
@@ -470,6 +506,59 @@ function  Pull() {
         mv  ".commit_ours"  ".commit_new"
         rm -rf  ".commit_theirs"
     fi
+}
+
+function  PullBase() {
+    #   *   5 (pulled)
+    #   |\
+    #   | * 4 _repository
+    #   * | 3 .commit_new
+    #   * | 2 .commit
+    #   |/
+    #   *   1 _base
+    local  baseFolderPath_=$( ResolvePath "$1"  || echo "(ERROR)" )
+    local  baseFolderPath="$( CutLastOf "${baseFolderPath_}" "/"  || echo "(ERROR)" )"
+    local  repositoryFolderPath_=$( ResolvePath "$2"  || echo "(ERROR)" )
+    local  repositoryFolderPath="$( CutLastOf "${repositoryFolderPath_}" "/"  || echo "(ERROR)" )"
+    ErrorIfLastIs  "${baseFolderPath_}"  "(ERROR)"
+    ErrorIfLastIs  "${baseFolderPath}"  "(ERROR)"
+    ErrorIfLastIs  "${repositoryFolderPath_}"  "(ERROR)"
+    ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
+    if [ "${baseFolderPath}" == "" ]; then
+        Error  "Not specified base folder.  Expected command: locommit pull-base __BaseFolderRelativePath__ __RepositoryFolderPath__"
+    fi
+    if [ "${repositoryFolderPath}" == "" ]; then
+        Error  "Not specified repository folder.  Expected command: locommit pull-base __BaseFolderRelativePath__ __RepositoryFolderPath__"
+    fi
+    if [ "${baseFolderPath:0:2}" == ".."  -o  "${baseFolderPath:0:1}" == "/" ]; then
+        Error  "BaseFolderPath must be in current folder."
+    fi
+    AssertExist  "${baseFolderPath}"
+    AssertExist  "${repositoryFolderPath}"
+
+    echo  "Renamed \".commit\" folder to \".commit_this\" folder"
+    echo  "Renamed \"${baseFolderPath}\" folder to \".commit\" folder"
+    mv  ".commit"  ".commit_this"
+    mv  "${baseFolderPath}"  ".commit"
+
+    #// Pull command
+    shift
+    PullSub  "$@"  --pull-base  "${baseFolderPath}"
+
+    if [ -e ".commit_theirs" ]; then
+        #// There is echo command in PullSub
+        mv  ".commit"  ".commit_old_base"
+        mv  ".commit_theirs"  "${baseFolderPath}"
+    else
+        echo  "Renamed \".commit\" folder to new \"${baseFolderPath}\" folder"
+        mv  ".commit"  "${baseFolderPath}"
+    fi
+    if [ -e ".commit_ours" ]; then
+        echo  "Renamed \".commit_ours\" folder to \".commit_old_ours\" folder"
+        mv  ".commit_ours"  ".commit_old_ours"
+    fi
+    echo  "Renamed \".commit_this\" folder to \".commit\" folder"
+    mv  ".commit_this"  ".commit"
 }
 
 function  CheckIfResetState() {
