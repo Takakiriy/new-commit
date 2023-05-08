@@ -368,7 +368,7 @@ function  PullSub() {
         echo  "Copied \".commit\" folder to \".commit_ours\" folder"
     fi
 
-    #// Add to stage in parent .git, if the parent .git includes current folder. 
+    #// Add to stage in parent .git, if the parent .git includes current folder.
     local  parentDotGit="${False}"
     if [ ! -e ".git" ]; then
         parentDotGit="${True}"
@@ -416,7 +416,7 @@ function  PullSub() {
             currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
             ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
             mkdir -p  "../.commit_theirs"
-            mv  ".git"  "../.commit_theirs"            
+            mv  ".git"  "../.commit_theirs"
         fi
 
     #// Make the repository branch
@@ -645,7 +645,7 @@ function  GetGitWorkingRootPath() {
             echo  "${path}"
             return
         fi
-        path="${path%/*}" 
+        path="${path%/*}"
     done
 
     echo  ""
@@ -882,7 +882,7 @@ function  Error() {
 
 True=0
 False=1
-GitInitOption=$(gitInitOption) 
+GitInitOption=$(gitInitOption)
 LocommitEMail="locommit@example.com"
 LocommitUser="locommit"
 
