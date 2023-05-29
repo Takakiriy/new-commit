@@ -320,3 +320,24 @@ push コマンドを実行すると `.commit_new` フォルダーの内容を `_
 `__RepositoryFolderPath__` に `/dev/null` を指定すると、コピーを行わず、
 `.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
 `.commit_new` フォルダーを削除します。
+
+
+## init-bare-push コマンド
+
+```mermaid
+graph LR;
+    c[ Git の ワーキング ディレクトリ ] -- git init --bare && push --> r[ 新規 ローカル リポジトリ ];
+```
+
+init-bare-push コマンドは、ローカルにリポジトリを新規作成し、
+そこへ カレント フォルダー の内容のコミットを作ります。
+
+    cd __WorkingDirectory__
+    locommit init-bare-push __NewRepositoryFolderPath__
+
+- `main` ブランチが作られます
+
+CI/CD 環境では、`git clone` コマンド と１つのコマンド（オプションあり）で
+インストールとテストを実行できるようにしますが、
+そのテストをローカルで行うときなどに使えます。
+ローカルでテストすることで、共有するリポジトリが大量の小さなコミットで汚くなることを防ぎます。

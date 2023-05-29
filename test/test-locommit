@@ -40,6 +40,7 @@ function  AllTest() {
     Test_PullBase_1
     Test_PullBase_NoInput
     Test_PullBase_Conflict
+    Test_InitBarePush_1
     EndOfTest
 }
 
@@ -53,8 +54,6 @@ function  Test_1() {
     echo "build"      > "_testing/.gitignore"
     echo ".commit"   >> "_testing/.gitignore"
     echo ".commit_*" >> "_testing/.gitignore"
-    echo ""
-    echo "Test_1"
 
     pushd "_testing" > /dev/null
     "../${LocommitCommand}"  ||  TestError
@@ -1498,6 +1497,51 @@ function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "
         AssertNotExist  "_testing/.commit_old_base"
         AssertNotExist  "_testing/.commit_new"
     DeleteFolder  "_testing"
+}
+
+function  Test_InitBarePush_1() {
+    echo  ""
+    echo  "### Test_InitBarePush_1"
+    DeleteFolder  "_testing"
+    DeleteFolder  "_repository"
+    DeleteFolder  "_working"
+    DeleteFolder  ".commit_init-bare-push"
+    mkdir -p "_testing/build"
+    echo "x" > "_testing/build/out"
+    echo "x" > "_testing/example.txt"
+    echo "build"      > "_testing/.gitignore"
+    echo ".commit"   >> "_testing/.gitignore"
+    echo ".commit_*" >> "_testing/.gitignore"
+
+    #// Test of too few parameters error
+    pushd "_testing" > /dev/null
+    "../${LocommitCommand}" init-bare-push   &&  TestError
+    popd > /dev/null
+
+    #// Test Main
+    pushd "_testing" > /dev/null
+    "../${LocommitCommand}" init-bare-push  ../_repository  ||  TestError
+    popd > /dev/null
+
+    AssertNotExist  "_testing/.commit_init-bare-push"
+    git clone  "file://${PWD}/_repository"  "_working"
+    AssertExist     "_working/example.txt"
+    AssertExist     "_working/.gitignore"
+    AssertNotExist  "_working/build"
+    AssertNotExist  "_working/build/out"
+    AssertExist     "_working/.git"
+    pushd "_working" > /dev/null
+    local  gitBranchOutput="$( git branch )"
+    popd > /dev/null
+    test  "${gitBranchOutput}" == "* main"  ||  Error
+
+    #// Test of already exists
+    pushd "_testing" > /dev/null
+    "../${LocommitCommand}" init-bare-push  ../_repository  &&  TestError
+    popd > /dev/null
+    DeleteFolder  "_testing"
+    DeleteFolder  "_repository"
+    DeleteFolder  "_working"
 }
 
 function  MakePushTestFiles() {

@@ -22,6 +22,9 @@ function  Main() {
     elif [ "${subCommand}" == "pull-base" ]; then
         shift
         PullBase  "$@"
+    elif [ "${subCommand}" == "init-bare-push" ]; then
+        shift
+        InitBarePush  "$@"
     else
         Error  "ERROR: Unknown sub command \"${subCommand}\""
     fi
@@ -559,6 +562,53 @@ function  PullBase() {
     fi
     echo  "Renamed \".commit_this\" folder to \".commit\" folder"
     mv  ".commit_this"  ".commit"
+}
+
+function  InitBarePush() {
+    local  newRepositoryFolderPath=$( ResolvePath "$1"  || echo "(ERROR)" )
+    ErrorIfLastIs  "${newRepositoryFolderPath}"  "(ERROR)"
+    if [ "${newRepositoryFolderPath}" == "" ]; then
+        Error  "Not specified new repository folder.  Expected command: locommit init-bare-push __NewRepositoryFolderPath__"
+    fi
+    if [ -e ".git" ]; then
+        local  dotGitExistsInCurrentFolder="${True}"
+    else
+        local  dotGitExistsInCurrentFolder="${False}"
+    fi
+    AssertNotExist  "${newRepositoryFolderPath}"
+    local  currentFolder="${PWD}"
+    if [ "${dotGitExistsInCurrentFolder}" == "${False}" ]; then
+        git init ${GitInitOption}  > /dev/null  2>&1
+        git config --local user.email "${LocommitEMail}"
+        git config --local user.name  "${LocommitUser}"
+        git add "."  > /dev/null  2>&1
+        git commit  -m "locommit) Created by InitBarePush"  > /dev/null  2>&1
+    fi
+    mkdir -p ".commit_init-bare-push"
+
+    git checkout-index -fau --prefix=".commit_init-bare-push/"
+    mkdir -p "${newRepositoryFolderPath}"
+    pushd  "${newRepositoryFolderPath}"  >  /dev/null
+    local  newRepositoryFullPath="${PWD}"
+
+    git init --bare --shared=true
+    git symbolic-ref HEAD refs/heads/main
+    popd  >  /dev/null
+    pushd  ".commit_init-bare-push"  >  /dev/null
+
+    git init ${GitInitOption}  > /dev/null  2>&1
+    git remote add origin "file://${newRepositoryFullPath}"
+    git checkout -b "main"
+    git add "."  > /dev/null  2>&1
+
+    git commit  -m "locommit) Created a local repository"  > /dev/null  2>&1
+    git symbolic-ref HEAD refs/heads/main
+    git push --set-upstream origin main
+    popd  >  /dev/null
+    if [ "${dotGitExistsInCurrentFolder}" == "${False}" ]; then
+        rm -rf "${currentFolder}/.git"
+    fi
+    rm -rf "${currentFolder}/.commit_init-bare-push"
 }
 
 function  CheckIfResetState() {

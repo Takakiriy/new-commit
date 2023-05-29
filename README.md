@@ -325,3 +325,24 @@ will be deleted in the `__RepositoryFolderPath__` folder.
 Specifying `__RepositoryFolderPath__` as `/dev/null` will copy no file and
 move files in the `.commit_new` folder into the `.commit` folder
 and delete `.commit_new` folder.
+
+
+## init-bare-push command
+
+```mermaid
+graph LR;
+    c[ Git working directory ] -- git init --bare && push --> r[ New local repository ];
+```
+
+`init-bare-push` command creates a new local repository
+and a commit of the current folder contents.
+
+    cd __WorkingDirectory__
+    locommit init-bare-push __NewRepositoryFolderPath__
+
+- Make `main` branch
+
+In CI/CD environment, it installs and tests by `git clone` command and
+a single command (with options),
+we can the test in local environment for that.
+Testing locally prevents your shared repository from becoming cluttered with lots of small commits.
