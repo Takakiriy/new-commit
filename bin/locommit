@@ -167,7 +167,7 @@ function  Clone() {
         Error  "ERROR: locommit clone __RepositoryFolderPath__ __DestinationFolderPath__"
     fi
     pushd  "${repositoryFolderPath}"  > /dev/null
-    CheckIfResetState
+    CheckIfGitResetState
     popd  > /dev/null
     repositoryFolderPath=$( ResolvePath "${repositoryFolderPath}" )
     repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
@@ -583,10 +583,23 @@ function  InitBarePush() {
         git config --local user.name  "${LocommitUser}"
         git add "."  > /dev/null  2>&1
         git commit  -m "locommit) Created by InitBarePush"  > /dev/null  2>&1
+        local  allFilesAreGitAdd="${True}"
+    else
+        CheckIfGitResetState
+        if AllFilesAreGitAdd; then
+            local  allFilesAreGitAdd="${True}"
+        else
+            local  allFilesAreGitAdd="${False}"
+        fi
+        git add "."  > /dev/null  2>&1
     fi
+
+    #// Copy files
     mkdir -p ".commit_init-bare-push"
 
     git checkout-index -fau --prefix=".commit_init-bare-push/"
+
+    #// Create new repository
     mkdir -p "${newRepositoryFolderPath}"
     pushd  "${newRepositoryFolderPath}"  >  /dev/null
     local  newRepositoryFullPath="${PWD}"
@@ -594,6 +607,8 @@ function  InitBarePush() {
     git init --bare --shared=true
     git symbolic-ref HEAD refs/heads/main
     popd  >  /dev/null
+
+    #// Make a commit
     pushd  ".commit_init-bare-push"  >  /dev/null
 
     git init ${GitInitOption}  > /dev/null  2>&1
@@ -605,13 +620,31 @@ function  InitBarePush() {
     git symbolic-ref HEAD refs/heads/main
     git push --set-upstream origin main
     popd  >  /dev/null
+
+    #// Clean
+    git status  > /dev/null  #// Change directory in git process(?) for deleting Windows folder
     if [ "${dotGitExistsInCurrentFolder}" == "${False}" ]; then
         rm -rf "${currentFolder}/.git"
     fi
-    rm -rf "${currentFolder}/.commit_init-bare-push"
+    DeleteFolder  ".commit_init-bare-push"
+    if [ "${allFilesAreGitAdd}" == "${False}" ]; then
+        git reset  > /dev/null  2>&1
+    fi
 }
 
-function  CheckIfResetState() {
+function  AllFilesAreGitAdd() {
+    local  status="$( git status --short )"
+
+    if [ "${status}" == "" ]; then
+        return  "${False}"
+    else
+        echo  "${status}" | grep -E '^ [^ ]' > /dev/null;
+        test "$?" != 0
+        return  $?
+    fi
+}
+
+function  CheckIfGitResetState() {
     local  status="$( git status --short )"
 
     #// Error, if one or more files are git added
@@ -631,12 +664,12 @@ function  CheckIfResetState() {
         if echo  "${status}"  |  grep -E '^.[^ ] .[^.]' > /dev/null; then
             echo  '$ git status --short'
             echo  "${status}"
-            Error  'ERROR: clone does not supported, when files were git added. You can clone, if you run git reset ".".'
+            Error  'ERROR: this command does not supported, when files were git added. You can clone, if you run git reset ".".'
         fi
     fi
 }
 
-function  Test_CheckIfResetState() {
+function  Test_CheckIfGitResetState() {
 
     #// Error, if one or more files are git added
     echo 'M  edit.txt'    | grep -E '^[^ ?]. .[^.]'  ||  Error
@@ -644,8 +677,8 @@ function  Test_CheckIfResetState() {
     echo 'M  ../edit.txt' | grep -E '^[^ ?]. .[^.]'  &&  Error
     echo 'M  .hidden.txt' | grep -E '^[^ ?]. .[^.]'  ||  Error
     echo '?? new.txt'     | grep -E '^[^ ?]. .[^.]'  &&  Error
-        # &&: Error if match ... CheckIfResetState is successed.
-        # ||: Error if not match ... CheckIfResetState raises an error.
+        # &&: Error if match ... CheckIfGitResetState is successed.
+        # ||: Error if not match ... CheckIfGitResetState raises an error.
 
     #// Error, if one or more files are not git added
     echo 'M  edit.txt'    | grep -E '^.[^ ] .[^.]'  &&  Error
@@ -653,8 +686,8 @@ function  Test_CheckIfResetState() {
     echo ' M ../edit.txt' | grep -E '^.[^ ] .[^.]'  &&  Error
     echo ' M .hidden.txt' | grep -E '^.[^ ] .[^.]'  ||  Error
     echo '?? new.txt'     | grep -E '^.[^ ] .[^.]'  ||  Error
-        # &&: Error if match ... CheckIfResetState is successed.
-        # ||: Error if not match ... CheckIfResetState raises an error.
+        # &&: Error if match ... CheckIfGitResetState is successed.
+        # ||: Error if not match ... CheckIfGitResetState raises an error.
 }
 
 function  EchoWithIndent() {
@@ -732,6 +765,23 @@ function  CopyFolder() {
         ls -a "${source}" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
             cp -Rap  "${source}/{}"  "${destination}/"
     fi
+}
+
+function  DeleteFolder() {
+    local  folderPath="$1"
+    local  retryCount=5
+
+    while true; do
+        rm -rf  "${folderPath}"
+        if [ "$?" == "${True}" ]; then
+            return
+        fi
+        retryCount="$(( ${retryCount} - 1 ))"
+        if [ "${retryCount}" == "0" ]; then
+            Error  "Cannot delete a folder \"${folderPath}\""
+        fi
+        sleep 2s
+    done
 }
 
 function  CutCommonPartLines() {

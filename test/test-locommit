@@ -40,7 +40,8 @@ function  AllTest() {
     Test_PullBase_1
     Test_PullBase_NoInput
     Test_PullBase_Conflict
-    Test_InitBarePush_1
+    Test_InitBarePush_OutOfGitWorking
+    Test_InitBarePush_InGitWorking
     EndOfTest
 }
 
@@ -1499,9 +1500,20 @@ function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "
     DeleteFolder  "_testing"
 }
 
-function  Test_InitBarePush_1() {
+function  Test_InitBarePush_OutOfGitWorking() {
     echo  ""
-    echo  "### Test_InitBarePush_1"
+    echo  "### Test_InitBarePush_OutOfGitWorking"
+    Test_InitBarePush_Sub  "out"
+}
+
+function  Test_InitBarePush_InGitWorking() {
+    echo  ""
+    echo  "### Test_InitBarePush_InGitWorking"
+    Test_InitBarePush_Sub  "in"
+}
+
+function  Test_InitBarePush_Sub() {
+    local  gitWorking="$1"
     DeleteFolder  "_testing"
     DeleteFolder  "_repository"
     DeleteFolder  "_working"
@@ -1512,6 +1524,17 @@ function  Test_InitBarePush_1() {
     echo "build"      > "_testing/.gitignore"
     echo ".commit"   >> "_testing/.gitignore"
     echo ".commit_*" >> "_testing/.gitignore"
+    if [ "${gitWorking}" == "in" ]; then
+        pushd  "_testing"  >  /dev/null
+        git init ${GitInitOption}  > /dev/null  2>&1
+        git config --local user.email "${LocommitEMail}"
+        git config --local user.name  "${LocommitUser}"
+        git add "."  > /dev/null  2>&1
+        git commit  -m "test-locommit)"  > /dev/null  2>&1
+        popd  >  /dev/null
+
+        echo "updated" > "_testing/example.txt"
+    fi
 
     #// Test of too few parameters error
     pushd "_testing" > /dev/null
@@ -1530,6 +1553,13 @@ function  Test_InitBarePush_1() {
     AssertNotExist  "_working/build"
     AssertNotExist  "_working/build/out"
     AssertExist     "_working/.git"
+    if [ "${gitWorking}" == "out" ]; then
+        test  "$( cat "_working/example.txt" )" == "x"  ||  Error
+    elif [ "${gitWorking}" == "in" ]; then
+        test  "$( cat "_working/example.txt" )" == "updated"  ||  Error
+    else
+        Error
+    fi
     pushd "_working" > /dev/null
     local  gitBranchOutput="$( git branch )"
     popd > /dev/null
