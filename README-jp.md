@@ -335,7 +335,9 @@ init-bare-push コマンドは、ローカルにリポジトリを新規作成�
     cd __WorkingDirectory__
     locommit init-bare-push __NewRepositoryFolderPath__
 
-- `main` ブランチが作られます
+- 現在のブランチ名と同じ名前のブランチが作られます
+- Git の ワーキング ディレクトリ の外で実行すると `main` ブランチが作られます
+- `--branch __BranchName__` オプションで作られるブランチ名を変更できます
 
 CI/CD 環境では、`git clone` コマンド と１つのコマンド（オプションあり）で
 インストールとテストを実行できるようにしますが、

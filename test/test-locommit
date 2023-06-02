@@ -1503,17 +1503,19 @@ function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "
 function  Test_InitBarePush_OutOfGitWorking() {
     echo  ""
     echo  "### Test_InitBarePush_OutOfGitWorking"
-    Test_InitBarePush_Sub  "out"
+    Test_InitBarePush_Sub  "out"  "--branch  develop"  "develop"
 }
 
 function  Test_InitBarePush_InGitWorking() {
     echo  ""
     echo  "### Test_InitBarePush_InGitWorking"
-    Test_InitBarePush_Sub  "in"
+    Test_InitBarePush_Sub  "in"  ""  "feature"
 }
 
 function  Test_InitBarePush_Sub() {
     local  gitWorking="$1"
+    local  branchOption="$2"
+    local  expectedBranch="$3"
     DeleteFolder  "_testing"
     DeleteFolder  "_repository"
     DeleteFolder  "_working"
@@ -1529,6 +1531,7 @@ function  Test_InitBarePush_Sub() {
         git init ${GitInitOption}  > /dev/null  2>&1
         git config --local user.email "${LocommitEMail}"
         git config --local user.name  "${LocommitUser}"
+        git checkout -b  "${expectedBranch}"
         git add "."  > /dev/null  2>&1
         git commit  -m "test-locommit)"  > /dev/null  2>&1
         popd  >  /dev/null
@@ -1543,7 +1546,8 @@ function  Test_InitBarePush_Sub() {
 
     #// Test Main
     pushd "_testing" > /dev/null
-    "../${LocommitCommand}" init-bare-push  ../_repository  ||  TestError
+
+    "../${LocommitCommand}" init-bare-push  ../_repository  ${branchOption}  ||  TestError
     popd > /dev/null
 
     AssertNotExist  "_testing/.commit_init-bare-push"
@@ -1563,7 +1567,7 @@ function  Test_InitBarePush_Sub() {
     pushd "_working" > /dev/null
     local  gitBranchOutput="$( git branch )"
     popd > /dev/null
-    test  "${gitBranchOutput}" == "* main"  ||  Error
+    test  "${gitBranchOutput}" == "* ${expectedBranch}"  ||  Error
 
     #// Test of already exists
     pushd "_testing" > /dev/null

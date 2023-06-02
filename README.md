@@ -340,7 +340,9 @@ and a commit of the current folder contents.
     cd __WorkingDirectory__
     locommit init-bare-push __NewRepositoryFolderPath__
 
-- Make `main` branch
+- New branch name is same as current branch name
+- The name is `main` branch, if current folder is out of Git working directory
+- You can change branch name by `--branch __BranchName__` option
 
 In CI/CD environment, it installs and tests by `git clone` command and
 a single command (with options),
