@@ -321,6 +321,13 @@ push コマンドを実行すると `.commit_new` フォルダーの内容を `_
 `.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
 `.commit_new` フォルダーを削除します。
 
+`.commit` フォルダーが無く `.git` フォルダーがある場所で push コマンドを実行すると、
+`.gitignore` の対象ファイルを除いたファイルだけ
+`__RepositoryFolderPath__` フォルダーにコピーします。
+下記のコマンドと同じ動きです。
+
+    git checkout-index -fau --prefix="__RepositoryFolderPath__"
+
 
 ## init-bare-push コマンド
 

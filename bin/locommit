@@ -225,11 +225,16 @@ function  Clone() {
 }
 
 function  Push() {
-    local  repositoryFolderPath=$( ResolvePath "$1" )
+    local  repositoryFolderPath="$1"
+    local  repositoryFolderPath=$( ResolvePath "${repositoryFolderPath}" )
     repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
     ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
     if [ "${repositoryFolderPath}" == "" ]; then
-        Error  "No main folder  Command: locommit push __RepositoryFolderPath__"
+        Error  "Not specified destination repository folder. Run the command: locommit push __RepositoryFolderPath__"
+    fi
+    if [ ! -e ".commit" ]; then
+        PushWithoutLocalCommit  "$@"
+        return
     fi
     AssertExist  "${repositoryFolderPath}"
     AssertExist  ".commit"
@@ -299,6 +304,19 @@ function  Push() {
             git commit  -m "locommit push) Updated." > /dev/null
         fi
     fi
+}
+
+function  PushWithoutLocalCommit() {
+    local  outputFolderPath="$1"
+    AssertExist  "${outputFolderPath}"
+    AssertNotExist  ".commit"
+    if [ ! -e ".git" ]; then
+        Error  "locommit push command requires \".commit\" or \".git\" folder."
+    fi
+    rm -rf  "${outputFolderPath}"
+    mkdir  "${outputFolderPath}"
+
+    git checkout-index -fau --prefix="${outputFolderPath}/"
 }
 
 function  Pull() {

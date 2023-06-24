@@ -25,6 +25,7 @@ function  AllTest() {
     Test_Diff_InWorkingDirectory
     Test_Diff_InWorkingSubDirectory
     Test_Push_1
+    Test_Push_GitWorkingWithoutLocalCommit
     Test_Push_NoCommitNewNoDiff
     Test_Push_NoCommitError
     Test_Push_Null
@@ -497,6 +498,31 @@ function  Test_Push_1() {
     if [ "${gitStatus}" != "?? ./" ]; then  #// Case of parent .git does not check any status.
         if [ "${gitStatus}" != "" ]; then  TestError;  fi
     fi
+    DeleteFolder  "_testing"
+}
+
+function  Test_Push_GitWorkingWithoutLocalCommit() {
+    echo  ""
+    echo  "### Test_Push_GitWorkingWithoutLocalCommit"
+    DeleteFolder  "_testing"
+    MakePushTestFiles
+
+    pushd "_testing" > /dev/null
+    git init ${GitInitOption}  > /dev/null  2>&1
+    git config --local user.email "${LocommitEMail}"
+    git config --local user.name  "${LocommitUser}"
+    git add "."  > /dev/null  2>&1
+    git commit  -m "temporary"  > /dev/null  2>&1
+    AssertExist     ".git"
+    AssertNotExist  ".commit"
+    AssertNotExist  ".commit_new"
+
+    echo  "$ locommit push _repository"
+    "../${LocommitCommand}" push "_repository"  ||  TestError
+    popd > /dev/null
+
+    AssertExist        "_testing/_repository/example.txt"
+    AssertNotReadOnly  "_testing/_repository/example.txt"
     DeleteFolder  "_testing"
 }
 

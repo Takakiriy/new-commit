@@ -326,6 +326,14 @@ Specifying `__RepositoryFolderPath__` as `/dev/null` will copy no file and
 move files in the `.commit_new` folder into the `.commit` folder
 and delete `.commit_new` folder.
 
+If you execute the push command in a place
+where there is a `.git` folder but no `.commit` folder,
+only the files excluding the files targeted by `.gitignore` will be copied
+to `__RepositoryFolderPath__` folder.
+It works the same as the following command.
+
+    git checkout-index -fau --prefix="__RepositoryFolderPath__"
+
 
 ## init-bare-push command
 
