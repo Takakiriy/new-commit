@@ -39,6 +39,7 @@ function  AllTest() {
     Test_Pull_IgnoreInRepository
     Test_Pull_Push_InWorkingSubDirectory
     Test_Pull_Push_TargetInWorkingDirectory
+    Test_Clone_Pull_Push_Zip
     Test_PullBase_1
     Test_PullBase_NoInput
     Test_PullBase_Conflict
@@ -101,6 +102,7 @@ function  Test_Clone() {
     AssertReadOnly     "_testing/a/work/.commit/sub/b.txt"
     AssertNotExist     "_testing/a/work/.commit/build/out"
     AssertExist        "_testing/a/work/.git"
+    AssertExist        "_testing/a/work/.gitignore"  #// Default settings
 
     #// Set up
     echo  "Error test:"
@@ -1323,6 +1325,74 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     local  result="$(cd _testing/_repository  &&  git diff)"
     echo  "${result}" | grep "\-a"      > /dev/null  ||  TestError
     echo  "${result}" | grep  "+a new"  > /dev/null  ||  TestError
+    DeleteFolder  "_testing"
+}
+
+function  Test_Clone_Pull_Push_Zip() {
+    echo ""
+    echo "### Test_Clone_Pull_Push_Zip --------------------------------"
+    DeleteFolder  "_testing"
+
+    #// Set up
+    mkdir -p  "_testing/repository"
+    echo "x" > "_testing/repository/example1.txt"
+    echo "y" > "_testing/repository/example2.txt"
+
+    #// Main: clone
+    echo  "$ locommit clone --zip-commit  _testing/repository  _testing/work"
+
+    "${LocommitCommand}" clone --zip-commit  "_testing/repository/"  "_testing/work"  ||  Error
+    AssertExist     "_testing/work/example1.txt"
+    AssertExist     "_testing/work/example2.txt"
+    AssertNotExist  "_testing/work/.commit"
+    AssertExist     "_testing/work/.commit.zip"
+
+    #// Set up
+    echo "x updated" > "_testing/repository/example1.txt"
+    echo "y updated" > "_testing/work/example2.txt"
+
+    #// Main: error in pull command
+    mkdir  "_testing/work/.commit"
+    pushd "_testing/work" > /dev/null
+    echo  "$ locommit pull  ../repository"
+
+    "../../${LocommitCommand}" pull  "../repository"  &&  Error
+    popd > /dev/null
+    AssertContents  "_testing/work/example1.txt"  "x"
+
+    #// Main: pull
+    rm -rf  "_testing/work/.commit"
+    pushd "_testing/work" > /dev/null
+    echo  "$ locommit pull  ../repository"
+
+    "../../${LocommitCommand}" pull  "../repository"  ||  Error
+    popd > /dev/null
+    AssertContents  "_testing/work/example1.txt"  "x updated"
+    AssertNotExist  "_testing/work/.commit"
+
+    #// Set up
+    pushd "_testing/work" > /dev/null
+    echo  "$ locommit"
+    "../../${LocommitCommand}"  ||  Error
+    popd > /dev/null
+
+    #// Main: push
+    mkdir  "_testing/work/.commit"  #// This is not an error reason of push command
+    pushd "_testing/work" > /dev/null
+    echo  "$ locommit push  ../repository"
+
+    "../../${LocommitCommand}" push  "../repository"  ||  Error
+    popd > /dev/null
+    AssertContents  "_testing/repository/example2.txt"  "y updated"
+    AssertNotExist  "_testing/repository/.commit"
+    AssertNotExist  "_testing/repository/.commit_new"
+    AssertNotExist  "_testing/work/.commit"
+    AssertNotExist  "_testing/work/.commit_new"
+    pushd "_testing/work" > /dev/null
+    unzip  ".commit.zip"
+    popd > /dev/null
+    AssertContents  "_testing/work/.commit/example1.txt"  "x updated"
+    AssertContents  "_testing/work/.commit/example2.txt"  "y updated"
     DeleteFolder  "_testing"
 }
 

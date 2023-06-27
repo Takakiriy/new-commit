@@ -71,21 +71,22 @@ flowchart TD;
 
 ### locommit コマンド
 
-.gitignore を踏まえたコピーをするときの
-`locommit` コマンドは、パラメーターを指定しません。
-状況に応じて動きが変わります。
+locommit コマンドにサブコマンド名を指定しない場合、
+.gitignore に書かれたパスにマッチしないファイルを
+`.commit` フォルダーまたは `.commit_new` フォルダーにコピーします。
 
-なお、`.gitignore` ファイルには、`.commit` や
-`.commit_*` を指定するべきです。
+なお、`.gitignore` ファイルには、`.commit`,
+`.commit_*`, `.commit.*` を指定すべきです。
 
 `.gitignore` のサンプル:
 
     .commit
     .commit_*
+    .commit.*
 
 ### `.commit` フォルダーが無い場合
 
-カレント フォルダー の直下に `.commit` フォルダーが無い場合、
+カレント フォルダー の直下に `.commit` フォルダー（と `.commit.zip` ファイル）が無い場合、
 カレント フォルダー およびそのサブフォルダーにあるファイルを
 カレント フォルダー の直下の `.commit` フォルダー にコピーします。
 このとき、`.gitignore` に指定したファイルはコピーされません。
@@ -114,7 +115,7 @@ flowchart TD;
 
 ### `.commit` フォルダーがすでに有る場合
 
-カレント フォルダー の直下に `.commit` フォルダーがすでに有る場合、
+カレント フォルダー の直下に `.commit` フォルダー（または `.commit.zip` ファイル）がすでに有る場合、
 カレント フォルダー およびそのサブフォルダーにあるファイルを
 カレント フォルダー の直下の `.commit_new` フォルダー にコピーします。
 このとき、`.gitignore` に指定したファイルはコピーされません。
@@ -192,6 +193,11 @@ clone コマンドは、既存のフォルダーの直下にある `.gitignore` 
     $ locommit clone "OriginalFolder" "NewWorkingFolder"
     Created new ".commit" folder.
 
+`--zip-commit` オプションを指定すると、`.commit` フォルダー を作る代わりに
+`.commit.zip` ファイルを作ります。
+`.commit.zip` ファイル があるときは、`locommit` コマンド、`push` コマンド、`pull` コマンドなどを
+実行する間だけ、`.commit` フォルダーに展開されます。
+
 `--file` オプションを指定すると、1つのファイルをコピーして、
 `.commit` フォルダーを作ります。`.git` フォルダーは作りません。
 
@@ -224,7 +230,7 @@ pull コマンドを実行すると `__RepositoryFolderPath__` フォルダー�
     1 file changed, 1 insertion(+), 1 deletion(-)
         Files .commit/example.txt and .commit_theirs/example.txt differ
 
-最新の リポジトリ フォルダー の内容が `.commit` フォルダーの内容から変わっていたときは、
+最新の リポジトリ フォルダー の内容が `.commit` フォルダー（または `.commit.zip`）の内容から変わっていたときは、
 `.commit_ours` フォルダーと `.commit_theirs` フォルダーが作られます。
 
 - .commit_ours フォルダー: pull コマンドを実行する前の カレント フォルダー の内容
@@ -315,10 +321,10 @@ push コマンドによって上書きされて無くなってしまうことに
 
 push コマンドを実行すると `.commit_new` フォルダーの内容を `__RepositoryFolderPath__`
 にコピーして、ファイルの読み取り専用属性をオフにします。
-また、`.commit_new` フォルダーの内容を `.commit` フォルダーに移動して、
+また、`.commit_new` フォルダーの内容を `.commit` フォルダー（または `.commit.zip`）に移動して、
 `.commit_new` フォルダーを削除します。
 
-`.commit` フォルダーの中にあるファイルのうち、
+`.commit` フォルダー（または `.commit.zip`）の中にあるファイルのうち、
 `.commit_new` フォルダーの中から無くなったファイルについては、
 `__RepositoryFolderPath__` フォルダーの中から削除します。
 

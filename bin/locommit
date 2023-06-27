@@ -6,6 +6,7 @@ while [[ $# -gt 0 ]]; do
         --no-git)     Options_NoGit="yes"; shift;;
         -b|--branch)  Options_Branch="$2"; shift; shift;;
         --file)       Options_File="$2"; shift; shift;;
+        --zip-commit) Options_ZipCommit="yes"; shift;;
         -*) echo "Unknown option $1"; exit 1;;
         *) PositionalArgs+=("$1"); shift;;
     esac
@@ -55,6 +56,13 @@ function  LocalCommit() {
     local  gitWorkingRootPath="$( GetGitWorkingRootPath  || echo "(ERROR)" )"
     local  outputFolderName=""
     ErrorIfLastIs  "${gitWorkingRootPath}"  "(ERROR)"
+    if [ -e ".commit"  -a  -e ".commit.zip" ]; then
+        Error  "ERROR: Remove \".commit\" or \".commit.zip\"."
+    fi
+    if [ -e ".commit.zip" ]; then
+        echo  'Unzipped ".commit.zip" to make ".commit" folder.'
+        unzip  ".commit.zip"  >  /dev/null
+    fi
     if [ ! -e ".commit" ]; then
         outputFolderName=".commit"
         if [ "${currentFolder}" == "${gitWorkingRootPath}"  -a  "${noGitOption}" == "${False}" ]; then
@@ -171,6 +179,10 @@ function  LocalCommit() {
     if [ "${gitWorkingRootPath}" == ""  -a  "${noGitOption}" == "${True}" ]; then
         rm -rf  ".git"
     fi
+    if [ -e ".commit.zip" ]; then
+        echo  'Deleted ".commit" folder extracted from ".commit.zip" file.'
+        rm -rf  ".commit"
+    fi
 }
 
 function  Clone() {
@@ -212,15 +224,28 @@ function  Clone() {
 
     git checkout-index -fau --prefix="${destinationFolderPath}/.commit/"
     git reset "."  > /dev/null
-    echo  'Created new ".commit" folder.'
     CopyFolder  "${destinationFolderPath}/.commit"  "${destinationFolderPath}"
     find  "${destinationFolderPath}/.commit" -type f  |  xargs  -I {} \
         chmod 444 "{}"
     if [ "${hasDotGit}" == "${False}" ]; then
         rm -rf  "${repositoryFolderPath}/.git"
     fi
+    if [ "${Options_ZipCommit}" == "" ]; then
+        echo  'Created new ".commit" folder.'
+    else
+        pushd "${destinationFolderPath}" > /dev/null
+        zip -r  ".commit.zip"  ".commit"  >  /dev/null  ||  Error
+        rm -rf  ".commit"
+        popd > /dev/null
+        echo  'Created new ".commit.zip" file.'
+    fi
 
     cd  "${destinationFolderPath}"
+    if [ ! -e ".gitignore" ]; then
+        echo  ".commit"    > ".gitignore"
+        echo  ".commit_*" >> ".gitignore"
+        echo  ".commit.*" >> ".gitignore"
+    fi
     git init ${GitInitOption}  > /dev/null  2>&1
     git config --local user.email "${LocommitEMail}"
     git config --local user.name  "${LocommitUser}"
@@ -260,6 +285,10 @@ function  Push() {
     if [ "${repositoryFolderPath}" == "" ]; then
         Error  "Not specified destination repository folder. Run the command: locommit push __RepositoryFolderPath__"
     fi
+    if [ -e ".commit.zip" ]; then
+        rm -rf  ".commit"
+        unzip  ".commit.zip"  >  /dev/null
+    fi
     if [ ! -e ".commit" ]; then
         PushWithoutLocalCommit  "$@"
         return
@@ -276,6 +305,9 @@ function  Push() {
         LocalCommit > /dev/null
         if [ -e ".commit_new" ]; then
             rm -rf  ".commit_new"
+            if [ -e ".commit.zip" ]; then
+                rm -rf  ".commit"
+            fi
             Error  "push command requires .commit_new folder, if update file exists. Run locommit command."
         fi
     fi
@@ -316,9 +348,17 @@ function  Push() {
 
     #// (.commit_new case) Update .commit folder
     if [ "${source}" == ".commit_new" ]; then
-        echo  "Moved \".commit_new\" to \".commit\" folder"
+        if [ ! -e ".commit.zip" ]; then
+            echo  "Moved \".commit_new\" to \".commit\" folder"
+        else
+            echo  "Compress and moved \".commit_new\" to \".commit.zip\" file"
+        fi
         rm -rf  ".commit"
         mv  ".commit_new"  ".commit"
+        if [ -e ".commit.zip" ]; then
+            zip -r  ".commit.zip"  ".commit"  >  /dev/null  ||  Error
+            rm -rf  ".commit"
+        fi
     fi
     rm -rf ".commit_ours"
     rm -rf ".commit_theirs"
@@ -375,7 +415,12 @@ function  PullSub() {
     if [ "${baseFolderRelativePath:0:2}" == ".." ]; then  Error;  fi
     if [ "${baseFolderRelativePath:0:1}" == "/" ]; then  Error;  fi
     AssertExist  "${repositoryFolderPath}"
-    AssertExist  ".commit"
+    if [ -e ".commit"  -a  -e ".commit.zip" ]; then
+        Error  "ERROR: Remove \".commit\" or \".commit.zip\"."
+    fi
+    if [ ! -e ".commit.zip" ]; then
+        AssertExist  ".commit"
+    fi
     local  source=".commit_new"
     if [ ! -e ".commit_new" ]; then
         source=".commit"
@@ -388,6 +433,10 @@ function  PullSub() {
         if [ -e ".commit_new" ]; then
             source=".commit_new"
         fi
+    fi
+    if [ -e ".commit.zip" ]; then
+        echo  'Unzipped ".commit.zip" to make ".commit" folder.'
+        unzip  ".commit.zip"  >  /dev/null
     fi
     if [ "${option}" == "--pull-base" ]; then
         rm -rf  "${source}/${baseFolderRelativePath}"
@@ -570,6 +619,10 @@ function  PullSub() {
         fi
         mv  ".commit_ours"  ".commit_new"
         rm -rf  ".commit_theirs"
+    fi
+    if [ -e ".commit.zip" ]; then
+        echo  'Deleted ".commit" folder extracted from ".commit.zip" file.'
+        rm -rf  ".commit"
     fi
 }
 

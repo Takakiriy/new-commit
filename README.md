@@ -73,21 +73,22 @@ flowchart TD;
 
 ### locommit command
 
-`locommit` command of copying using .gitignore
-takes no parameters.
-The movement changes depending on the situation.
+If you don't specify subcommand name for the `locommit` command,
+it copies files that don't match the path written in
+`.gitignore` file to the `.commit` or `.commit_new` folder.
 
 The `.gitignore` file should write
-to the `.commit` and `.commit_*`.
+to the `.commit`, `.commit_*` and `.commit.*`.
 
 Sample `.gitignore`:
 
     .commit
     .commit_*
+    .commit.*
 
 ### Case of no `.commit` folder
 
-If there is no `.commit` folder directly under the current folder,
+If there is no `.commit` folder (and `.commit.zip` file) directly under the current folder,
 copies the files in the current folder and its subfolders
 to the `.commit` folder directly under the current folder.
 At this time, files specified in `.gitignore` are not copied.
@@ -117,7 +118,7 @@ Sample commands:
 
 ### Case that `.commit` folder is already exists
 
-If there is already a `.commit` folder directly under the current folder,
+If there is already a `.commit` folder (or `.commit.zip` file) directly under the current folder,
 copies the files in the current folder and its subfolders
 to the `.commit_new` folder directly under the current folder.
 At this time, files specified in `.gitignore` are not copied.
@@ -197,6 +198,11 @@ Sample commands:
     $ locommit clone "OriginalFolder" "NewWorkingFolder"
     Created new ".commit" folder.
 
+`--zip-commit` option creates a `.commit.zip` file
+instead of creating a `.commit` folder.
+If there is a `.commit.zip` file, it will be expanded to
+`.commit` folder only during `locommit`, `push`, `pull` commands, etc.
+
 `--file` option copies a single file and create `.commit` folder.
 It does not create a `.git` folder.
 
@@ -231,7 +237,7 @@ The pull command merges the contents of
 
 `.commit_ours` folder and `.commit_theirs` folder are created,
 when the contents of the latest repository folder were changed from
-the contents of `.commit` folder.
+the contents of `.commit` folder (or `.commit.zip`).
 
 - `.commit_ours` folder: Contents of current folder before pull command
 - `.commit_theirs` folder: Copy of the latest repository folder
@@ -321,10 +327,10 @@ will be overwritten and lost by push command.
 
 Push command copies files in `.commit_new` folder to `__RepositoryFolderPath__`
 and turn off the read-only attribute of the file.
-Also move files in the `.commit_new` folder into the `.commit` folder
+Also move files in the `.commit_new` folder into the `.commit` folder (or `.commit.zip`)
 and delete `.commit_new` folder.
 
-Files in the `.commit` folder that are no longer in the `.commit_new` folder
+Files in the `.commit` folder (or `.commit.zip`) that are no longer in the `.commit_new` folder
 will be deleted in the `__RepositoryFolderPath__` folder.
 
 - Replace `__RepositoryFolderPath__` to the actual folder path
