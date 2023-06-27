@@ -192,6 +192,11 @@ clone コマンドは、既存のフォルダーの直下にある `.gitignore` 
     $ locommit clone "OriginalFolder" "NewWorkingFolder"
     Created new ".commit" folder.
 
+`--file` オプションを指定すると、1つのファイルをコピーして、
+`.commit` フォルダーを作ります。`.git` フォルダーは作りません。
+
+    locommit clone __OriginalFolder__ __NewWorkingFolder__ --file __FileRelativePath__
+
 
 ## pull コマンド
 
@@ -254,6 +259,11 @@ push コマンドを使うと、通常の push コマンドの動作の他に、
 
 pull コマンド に指定した リポジトリ フォルダー の中のファイルのうち、
 `.gitignore` の対象になっているファイルはマージされません。
+
+`--file` オプションを指定すると、1つのファイルをマージします。
+
+    cd __WorkingDirectory__
+    locommit pull __RepositoryFolderPath__ --file __FileRelativePath__
 
 
 ## pull-base コマンド

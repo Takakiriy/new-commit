@@ -197,6 +197,11 @@ Sample commands:
     $ locommit clone "OriginalFolder" "NewWorkingFolder"
     Created new ".commit" folder.
 
+`--file` option copies a single file and create `.commit` folder.
+It does not create a `.git` folder.
+
+    locommit clone __OriginalFolder__ __NewWorkingFolder__ --file __FileRelativePath__
+
 
 ## pull command
 
@@ -260,6 +265,11 @@ and `.commit_theirs` folder in addition to the normal push command behavior.
 
 Files in the repository folder specified in the pull command
 that are marked with `.gitignore` will not be merged.
+
+`--file` option merges a single file.
+
+    cd __WorkingDirectory__
+    locommit pull __RepositoryFolderPath__ --file __FileRelativePath__
 
 
 ## pull-base command

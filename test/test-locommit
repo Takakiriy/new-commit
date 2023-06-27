@@ -16,6 +16,7 @@ function  AllTest() {
     Test_1
     Test_Clone
     Test_ChangeAndClone
+    Test_Clone_File
     Test_InWorkingDirectory
     Test_InWorkingSubDirectory
     Test_NoUpdate
@@ -41,6 +42,7 @@ function  AllTest() {
     Test_PullBase_1
     Test_PullBase_NoInput
     Test_PullBase_Conflict
+    Test_PullFile_1
     Test_InitBarePush_OutOfGitWorking
     Test_InitBarePush_InGitWorking
     EndOfTest
@@ -48,7 +50,7 @@ function  AllTest() {
 
 function  Test_1() {
     echo  ""
-    echo  "### Test_1"
+    echo  "### Test_1 --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
@@ -75,7 +77,7 @@ function  Test_1() {
 
 function  Test_Clone() {
     echo  ""
-    echo  "### Test_Clone"
+    echo  "### Test_Clone --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p  "_testing/repository/build"
     mkdir -p  "_testing/repository/sub"
@@ -114,7 +116,7 @@ function  Test_Clone() {
 
 function  Test_ChangeAndClone() {
     echo  ""
-    echo  "### Test_ChangeAndClone"
+    echo  "### Test_ChangeAndClone --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p  "_testing/repository"
 
@@ -169,9 +171,32 @@ function  Test_ChangeAndClone() {
     DeleteFolder  "_testing"
 }
 
+function  Test_Clone_File() {
+    echo  ""
+    echo  "### Test_Clone_File --------------------------------"
+    DeleteFolder  "_testing"
+
+    #// Set up
+    mkdir -p  "_testing/repository"
+    echo "x" > "_testing/repository/example.txt"
+    echo "n" > "_testing/repository/not_used_in_repository.txt"
+
+    #// Main
+    echo  "$ locommit clone  _testing/repository/  _testing/a/work  --file  example.txt"
+    "${LocommitCommand}" clone "_testing/repository/"  "_testing/a/work"  --file "example.txt"  ||  Error
+
+    #// Check
+    AssertNotReadOnly  "_testing/a/work/example.txt"
+    AssertNotExist     "_testing/a/work/not_used_in_repository.txt"
+    AssertReadOnly     "_testing/a/work/.commit/example.txt"
+    AssertNotExist     "_testing/a/work/.commit/not_used_in_repository.txt"
+    AssertNotExist     "_testing/a/work/.git"
+    DeleteFolder  "_testing"
+}
+
 function  Test_InWorkingDirectory() {
     echo  ""
-    echo  "### Test_InWorkingDirectory"
+    echo  "### Test_InWorkingDirectory --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
@@ -204,7 +229,7 @@ function  Test_InWorkingDirectory() {
 
 function  Test_InWorkingSubDirectory() {
     echo  ""
-    echo  "### Test_InWorkingSubDirectory"
+    echo  "### Test_InWorkingSubDirectory --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/sub/build"
     echo "x" > "_testing/sub/build/out"
@@ -246,7 +271,7 @@ function  Test_InWorkingSubDirectory() {
 
 function  Test_NoUpdate() {  #// Base test is "Test_1"
     echo  ""
-    echo  "### Test_NoUpdate"
+    echo  "### Test_NoUpdate --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
@@ -274,7 +299,7 @@ function  Test_NoUpdate() {  #// Base test is "Test_1"
 
 function  Test_NoModifiedConflict() {  #// Base test is "Test_1"
     echo  ""
-    echo  "### Test_NoModifiedConflict"
+    echo  "### Test_NoModifiedConflict --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
@@ -308,7 +333,7 @@ function  Test_NoModifiedConflict() {  #// Base test is "Test_1"
 
 function  Test_NoGitOption() {
     echo  ""
-    echo  "### Test_NoGitOption"
+    echo  "### Test_NoGitOption --------------------------------"
 
     #// .git folder
     DeleteFolder  "_testing"
@@ -352,7 +377,7 @@ function  Test_NoGitOption() {
 
 function  Test_Diff() {  #// Base test is "Test_1"
     echo  ""
-    echo  "### Test_Diff"
+    echo  "### Test_Diff --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
@@ -379,7 +404,7 @@ function  Test_Diff() {  #// Base test is "Test_1"
 
 function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Test_InWorkingDirectory"
     echo  ""
-    echo  "### Test_Diff_InWorkingDirectory"
+    echo  "### Test_Diff_InWorkingDirectory --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
@@ -413,7 +438,7 @@ function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Te
 
 function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWorkingDirectory" and "Test_InWorkingSubDirectory"
     echo  ""
-    echo  "### Test_Diff_InWorkingSubDirectory"
+    echo  "### Test_Diff_InWorkingSubDirectory --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/sub/build"
     mkdir -p "_testing/sub/.commit"
@@ -449,7 +474,7 @@ function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWor
 
 function  Test_Push_1() {
     echo  ""
-    echo  "### Test_Push_1"
+    echo  "### Test_Push_1 --------------------------------"
     DeleteFolder  "_testing"
     MakePushTestFiles
     echo "del" > "_testing/will_delete.txt"
@@ -503,7 +528,7 @@ function  Test_Push_1() {
 
 function  Test_Push_GitWorkingWithoutLocalCommit() {
     echo  ""
-    echo  "### Test_Push_GitWorkingWithoutLocalCommit"
+    echo  "### Test_Push_GitWorkingWithoutLocalCommit --------------------------------"
     DeleteFolder  "_testing"
     MakePushTestFiles
 
@@ -528,7 +553,7 @@ function  Test_Push_GitWorkingWithoutLocalCommit() {
 
 function  Test_Push_NoCommitNewNoDiff() {
     echo  ""
-    echo  "### Test_Push_NoCommitNewNoDiff"
+    echo  "### Test_Push_NoCommitNewNoDiff --------------------------------"
     DeleteFolder  "_testing"
     MakePushTestFiles
 
@@ -549,7 +574,7 @@ function  Test_Push_NoCommitNewNoDiff() {
 
 function  Test_Push_NoCommitError() {
     echo  ""
-    echo  "### Test_Push_NoCommitError"
+    echo  "### Test_Push_NoCommitError --------------------------------"
     #// Error test of no .commit_new but different contents
     DeleteFolder  "_testing"
     MakePushTestFiles
@@ -576,7 +601,7 @@ function  Test_Push_NoCommitError() {
 
 function  Test_Push_Null() {
     echo  ""
-    echo  "### Test_Push_Null"
+    echo  "### Test_Push_Null --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -717,7 +742,7 @@ function  Test_Push_SameOrParentFolderError() {
 
 function  Test_Pull_1() {
     echo  ""
-    echo  "### Test_Pull_1"
+    echo  "### Test_Pull_1 --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -783,7 +808,7 @@ function  Test_Pull_1() {
 
 function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
     echo  ""
-    echo  "### Test_Pull_NoInput"
+    echo  "### Test_Pull_NoInput --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -888,7 +913,7 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
 
 function  Test_Pull_Merge() {
     echo  ""
-    echo  "### Test_Pull_Merge"
+    echo  "### Test_Pull_Merge --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -967,7 +992,7 @@ function  Test_Pull_Merge() {
 
 function  Test_Pull_Conflict() {
     echo  ""
-    echo  "### Test_Pull_Conflict"
+    echo  "### Test_Pull_Conflict --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1076,7 +1101,7 @@ function  Test_Pull_Conflict() {
 
 function  Test_Pull_IgnoreInRepository() {  #// Base test is "Test_Pull_1"
     echo  ""
-    echo  "### Test_Pull_IgnoreInRepository"
+    echo  "### Test_Pull_IgnoreInRepository --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1145,7 +1170,7 @@ function  Test_Pull_IgnoreInRepository() {  #// Base test is "Test_Pull_1"
 
 function  Test_Pull_Push_InWorkingSubDirectory() {
     echo  ""
-    echo  "### Test_Pull_Push_InWorkingSubDirectory"
+    echo  "### Test_Pull_Push_InWorkingSubDirectory --------------------------------"
 
     #// Set up
         DeleteFolder  "_testing"
@@ -1201,7 +1226,7 @@ function  Test_Pull_Push_InWorkingSubDirectory() {
 
 function  Test_Pull_Push_TargetInWorkingDirectory() {
     echo ""
-    echo "### Test_Pull_Push_TargetInWorkingDirectory"
+    echo "### Test_Pull_Push_TargetInWorkingDirectory --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1303,7 +1328,7 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
 
 function  Test_PullBase_1() {  #// Base test is "Test_Pull_1"
     echo ""
-    echo "### Test_PullBase_1"
+    echo "### Test_PullBase_1 --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1360,7 +1385,7 @@ function  Test_PullBase_1() {  #// Base test is "Test_Pull_1"
 
 function  Test_PullBase_NoInput() {  #// Base tests are "Test_PullBase_1" and "Test_Pull_NoInput"
     echo  ""
-    echo  "### Test_PullBase_NoInput"
+    echo  "### Test_PullBase_NoInput --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1428,7 +1453,7 @@ function  Test_PullBase_NoInput() {  #// Base tests are "Test_PullBase_1" and "T
 
 function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "Test_Pull_Conflict"
     echo  ""
-    echo  "### Test_PullBase_Conflict"
+    echo  "### Test_PullBase_Conflict --------------------------------"
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1526,15 +1551,80 @@ function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "
     DeleteFolder  "_testing"
 }
 
+function  Test_PullFile_1() {
+    echo  ""
+    echo  "### Test_PullFile_1 --------------------------------"
+
+    #// Set up
+    DeleteFolder  "_testing"
+    mkdir -p "_testing"
+    echo  "# ignore except one file"  >  "_testing/.gitignore"
+    echo  "*"             >>  "_testing/.gitignore"
+    echo  "!example.txt"  >>  "_testing/.gitignore"
+    echo "a"  > "_testing/example.txt"
+    echo "b" >> "_testing/example.txt"
+    echo "c" >> "_testing/example.txt"
+
+    mkdir -p "_testing/_repository"
+    echo "a"      > "_testing/_repository/example.txt"
+    echo "b"     >> "_testing/_repository/example.txt"
+    echo "c new" >> "_testing/_repository/example.txt"
+    echo "n"     >> "_testing/_repository/not_used_theirs.txt"
+
+    #// pull command
+    pushd "_testing" > /dev/null
+
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
+
+    echo  "$ locommit pull  _repository  --file  example.txt"
+    "../${LocommitCommand}" pull "_repository"  --file  "example.txt"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/example.txt"  'a\nb\nc new\n'
+    AssertNotExist  "_testing/not_used.txt"
+    AssertExist     "_testing/.commit_ours"
+    AssertExist     "_testing/.commit_theirs"
+    AssertNotExist  "_testing/.commit_new"
+    AssertExist     "_testing/.commit"
+
+    #// push command
+    pushd "_testing" > /dev/null
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
+    popd > /dev/null
+
+    AssertExist  "_testing/.commit_new"
+
+    pushd "_testing" > /dev/null
+    echo  "n"  >  "not_used_ours.txt"
+    echo  "$ locommit push _repository/example.txt"
+    "../${LocommitCommand}" push "_repository/example.txt"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
+    AssertNotExist  "_testing/_repository/not_used_ours.txt"
+    AssertNotExist  "_testing/.commit_ours"
+    AssertNotExist  "_testing/.commit_theirs"
+    AssertNotExist  "_testing/.commit_new"
+    DeleteFolder  "_testing"
+}
+
 function  Test_InitBarePush_OutOfGitWorking() {
     echo  ""
-    echo  "### Test_InitBarePush_OutOfGitWorking"
+    echo  "### Test_InitBarePush_OutOfGitWorking --------------------------------"
     Test_InitBarePush_Sub  "out"  "--branch  develop"  "develop"
 }
 
 function  Test_InitBarePush_InGitWorking() {
     echo  ""
-    echo  "### Test_InitBarePush_InGitWorking"
+    echo  "### Test_InitBarePush_InGitWorking --------------------------------"
     Test_InitBarePush_Sub  "in"  ""  "feature"
 }
 
@@ -1620,7 +1710,7 @@ function  MakePushTestFiles() {
 
 function  Test_ResolvePath() {
     echo  ""
-    echo  "### Test_ResolvePath"
+    echo  "### Test_ResolvePath --------------------------------"
     ResolvePath > /dev/null  #// Set "mnt_c" environmet variable
     if [ "$( ResolvePath "/mnt/c/" )" != "${mnt_c}/" ]; then  TestError;  fi
     if [ "$( ResolvePath "c:/" )"     != "${mnt_c}/" ]; then  TestError;  fi
@@ -1666,7 +1756,7 @@ function  GetGitWorkingRootPath() {
 
 function  Test_CopyFolder() {
     echo  ""
-    echo  "### Test_CopyFolder"
+    echo  "### Test_CopyFolder --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p   "_testing/source"
     echo "x" > "_testing/source/a"
@@ -1775,7 +1865,7 @@ function  GetBooleanString() {
 
 function  Test_CutLastOf() {
     echo  ""
-    echo  "### Test_CutLastOf"
+    echo  "### Test_CutLastOf --------------------------------"
 
     local  result="$(CutLastOf "aba" "a")"
     if [ "${result}" != "ab" ]; then
@@ -1830,7 +1920,7 @@ function  GitStatusCurrentFolder() {
 
 function  Test_LessThanVersion() {
     echo  ""
-    echo  "### Test_LessThanVersion"
+    echo  "### Test_LessThanVersion --------------------------------"
     if [ "$( LessThanVersion "0.0.0" "0.0.0" )" != "${False}" ]; then  TestError  ;fi
     if [ "$( LessThanVersion "0.0.0" "0.0.1" )" != "${True}"  ]; then  TestError  ;fi
     if [ "$( LessThanVersion "0.0.0" "0.1.0" )" != "${True}"  ]; then  TestError  ;fi
@@ -1878,7 +1968,7 @@ function  LessThanVersion() {
 
 function  Test_Assert() {
     echo  ""
-    echo  "### Test_Assert"
+    echo  "### Test_Assert --------------------------------"
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
@@ -2017,7 +2107,7 @@ function  AssertContents() {
 
 function  Test_ErrorIfLastIs() {
     echo  ""
-    echo  "### Test_ErrorIfLastIs"
+    echo  "### Test_ErrorIfLastIs --------------------------------"
 
     local  output="$( Test_Sub1_ErrorIfLastIs )"
     local  answer="$( echo -e 'OK\nstdout\n(ERROR)\n' )"
@@ -2079,7 +2169,7 @@ function  ErrorIfLastIs() {
 
 function  Test_Error() {
     echo  ""
-    echo  "### Test_Error"
+    echo  "### Test_Error --------------------------------"
     local  currentErrorCount="${ErrorCount}"
 
     #// Test

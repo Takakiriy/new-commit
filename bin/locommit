@@ -5,6 +5,7 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         --no-git)     Options_NoGit="yes"; shift;;
         -b|--branch)  Options_Branch="$2"; shift; shift;;
+        --file)       Options_File="$2"; shift; shift;;
         -*) echo "Unknown option $1"; exit 1;;
         *) PositionalArgs+=("$1"); shift;;
     esac
@@ -57,7 +58,7 @@ function  LocalCommit() {
     if [ ! -e ".commit" ]; then
         outputFolderName=".commit"
         if [ "${currentFolder}" == "${gitWorkingRootPath}"  -a  "${noGitOption}" == "${False}" ]; then
-            Error  "locommit command cannot create new \".commit\" folder where \".git\" folder exists."
+            Error  "locommit command cannot create new \".commit\" folder where \".git\" folder exists. You can specify --no-git option."
         fi
     else
         outputFolderName=".commit_new"
@@ -178,6 +179,10 @@ function  Clone() {
     if [ "$1" == ""  -o  "$2" == "" ]; then
         Error  "ERROR: locommit clone __RepositoryFolderPath__ __DestinationFolderPath__"
     fi
+    if [ "${Options_File}" != "" ]; then
+        CloneFile  "$@"
+        return $?
+    fi
     pushd  "${repositoryFolderPath}"  > /dev/null
     CheckIfGitResetState
     popd  > /dev/null
@@ -222,6 +227,29 @@ function  Clone() {
     git add "."  > /dev/null  2>&1
     git commit -m  "locommit) First commit"  > /dev/null
     popd  > /dev/null
+}
+
+function  CloneFile() {
+    local  repositoryFolderPath="$1"
+    local  destinationFolderPath="$2"
+    local  fileRelativePath="${Options_File}"
+    local  fileName="${fileRelativePath##*/}"
+    if [ "$1" == ""  -o  "$2" == "" ]; then
+        Error  "ERROR: locommit clone __RepositoryFolderPath__ __DestinationFolderPath__"
+    fi
+    repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
+    destinationFolderPath="$( CutLastOf "${destinationFolderPath}" "/"  || echo "(ERROR)" )"
+    AssertExist  "${repositoryFolderPath}"
+    if [ -e "${destinationFolderPath}" ]; then
+        Error  "fatal: destination path '${destinationFolderPath}' already exists."  128
+    fi
+    local  destinationFilePath="${destinationFolderPath}/${fileRelativePath}"
+    local  destinationFileParent="${destinationFilePath%/*}"
+    mkdir -p  "${destinationFileParent}/.commit"
+
+    cp -ap  "${repositoryFolderPath}/${fileRelativePath}"  "${destinationFilePath}"
+    cp -ap  "${repositoryFolderPath}/${fileRelativePath}"  "${destinationFileParent}/.commit"
+    chmod 444  "${destinationFileParent}/.commit/${fileName}"
 }
 
 function  Push() {
@@ -326,7 +354,11 @@ function  Pull() {
     #   * | 2 .commit_new
     #   |/
     #   *   1 .commit
-    PullSub  "$1"  --pull
+    if [ "${Options_File}" == "" ]; then
+        PullSub  "$1"  --pull
+    else
+        PullFile  "$1"  --pull
+    fi
 }
 
 function  PullSub() {
@@ -363,7 +395,7 @@ function  PullSub() {
 
     #// Create ".commit_theirs" folder
     #// ".commit_theirs" is a copy of a folder in related repository at
-    #// "repositoryFolderPath", minus the files covered by ".gitignore".
+    #// "repositoryFolderPath", except for the files covered by ".gitignore".
         AssertNotExist  "${repositoryFolderPath}/.commit_new"
         local  thereIsRepositoryCommit=${False}
         if [ -e "${repositoryFolderPath}/.commit" ]; then
@@ -550,8 +582,9 @@ function  PullBase() {
     #   |/
     #   *   1 _base
     local  baseFolderPath_=$( ResolvePath "$1"  || echo "(ERROR)" )
+    local  repositoryFolderPath_="$2"
     local  baseFolderPath="$( CutLastOf "${baseFolderPath_}" "/"  || echo "(ERROR)" )"
-    local  repositoryFolderPath_=$( ResolvePath "$2"  || echo "(ERROR)" )
+    local  repositoryFolderPath_=$( ResolvePath "${repositoryFolderPath_}"  || echo "(ERROR)" )
     local  repositoryFolderPath="$( CutLastOf "${repositoryFolderPath_}" "/"  || echo "(ERROR)" )"
     ErrorIfLastIs  "${baseFolderPath_}"  "(ERROR)"
     ErrorIfLastIs  "${baseFolderPath}"  "(ERROR)"
@@ -576,7 +609,7 @@ function  PullBase() {
 
     #// Pull command
     shift
-    PullSub  "$@"  --pull-base  "${baseFolderPath}"
+    PullSub  "$1"  --pull-base  "${baseFolderPath}"
 
     if [ -e ".commit_theirs" ]; then
         #// There is echo command in PullSub
@@ -592,6 +625,90 @@ function  PullBase() {
     fi
     echo  "Renamed \".commit_this\" folder to \".commit\" folder"
     mv  ".commit_this"  ".commit"
+}
+
+function  PullFile() {
+    local  repositoryFolderPath_="$1"
+    local  option="$2"  #// "--pull" or "--pull-base"
+    local  baseFolderRelativePath="$3"  #// This is enabled if option == "--pull-base"
+    local  fileRelativePath="${Options_File}"
+    local  fileName="${fileRelativePath##*/}"
+    local  repositoryFolderPath_=$( ResolvePath "${repositoryFolderPath_}"  || echo "(ERROR)" )
+    local  repositoryFolderPath="$( CutLastOf "${repositoryFolderPath_}" "/"  || echo "(ERROR)" )"
+    ErrorIfLastIs  "${repositoryFolderPath_}"  "(ERROR)"
+    ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
+    if [ "${repositoryFolderPath}" == "" ]; then
+        Error  "Not specified repository folder.  Expected command: locommit pull __RepositoryFolderPath__"
+    fi
+    test -f "${repositoryFolderPath}/${fileRelativePath}"  ||  Error
+    if [ "${baseFolderRelativePath:0:2}" == ".." ]; then  Error;  fi
+    if [ "${baseFolderRelativePath:0:1}" == "/" ]; then  Error;  fi
+    AssertExist  "${repositoryFolderPath}"
+    AssertExist  ".commit"
+
+    #// Create ".commit_theirs" folder
+    local  destination=".commit_theirs/${fileRelativePath}"
+    local  destinationParent="${destination%/*}"
+    mkdir -p  "${destinationParent}"
+    rm -f  ".commit_theirs/${fileRelativePath}"
+
+    cp  "${repositoryFolderPath}/${fileRelativePath}"  ".commit_theirs/${fileRelativePath}"
+    chmod 444  ".commit_theirs/${fileRelativePath}"
+    echo  "Copied a file in repository folder to \".commit_theirs\" folder"
+
+    #// Create ".commit_ours" folder
+    local  destination=".commit_ours/${fileRelativePath}"
+    local  destinationParent="${destination%/*}"
+    mkdir -p  "${destinationParent}"
+    rm -f  ".commit_ours/${fileRelativePath}"
+
+    cp  "${fileRelativePath}"  ".commit_ours/${fileRelativePath}"
+    chmod 444  ".commit_ours/${fileRelativePath}"
+    echo  "Copied a file in current folder to \".commit_ours\" folder"
+
+    #// Merge
+    #// source: ".commit_theirs" folder
+    #// destination: current folder
+    rm -rf    ".commit_merging"
+    mkdir -p  ".commit_merging"
+    pushd  ".commit_merging" > /dev/null
+
+        #// Make common commit
+        cp  "../.commit/${fileRelativePath}"  "."
+        chmod 644  "${fileName}"
+        git init ${GitInitOption}  > /dev/null  ||  Error
+        git config --local user.email "${LocommitEMail}"
+        git config --local user.name  "${LocommitUser}"
+        git add  "." > /dev/null
+        git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
+        local  currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
+        ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
+
+        #// Make commit_theirs
+        cp  "../.commit_theirs/${fileRelativePath}"  "."
+        chmod 644  "${fileName}"
+        git checkout -b "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
+        git add "." > /dev/null
+        git commit  -m "locommit pull) commit_theirs" > /dev/null  #// Ignore this command errors
+
+        #// Make commit_ours
+        git checkout "${currentBranch}" > /dev/null 2>&1  ||  Error
+        cp  "../.commit_ours/${fileRelativePath}"  "."
+        chmod 644  "${fileName}"
+        git checkout -b "__locommit_commit_ours" > /dev/null 2>&1  ||  Error
+        git add "." > /dev/null
+        git commit  -m "locommit pull) commit_ours" > /dev/null  #// Ignore this command errors
+
+        #// Merge
+        local  mergeLog="$( git merge  "__locommit_commit_theirs" --no-edit  2>&1  ||  echo "(ERROR)" )"
+        if echo "${mergeLog}" | grep "Abort."; then
+            echo "${mergeLog}"
+            Error  "failed: git merge .commit_theirs"
+        fi
+    popd > /dev/null
+
+    cp -ap  ".commit_merging/${fileName}"  "."
+    rm -rf  ".commit_merging"
 }
 
 function  InitBarePush() {
