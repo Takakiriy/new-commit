@@ -6,6 +6,7 @@ function  AllTest() {
     DetectTestEnvironment
 
     Test_Error
+    Test_DeleteFolder
     Test_ResolvePath
     Test_Assert
     Test_CutLastOf
@@ -17,14 +18,14 @@ function  AllTest() {
     Test_Clone
     Test_ChangeAndClone
     Test_Clone_File
-    Test_InWorkingDirectory
-    Test_InWorkingSubDirectory
+    Test_InWorkingDirectory   #// error in TestEnvironmentNum == 4
+    Test_InWorkingSubDirectory   #// error in TestEnvironmentNum == 4
     Test_NoUpdate
     Test_NoModifiedConflict
-    Test_NoGitOption
+    Test_NoGitOption   #// error in TestEnvironmentNum == 4
     Test_Diff
-    Test_Diff_InWorkingDirectory
-    Test_Diff_InWorkingSubDirectory
+    Test_Diff_InWorkingDirectory   #// error in TestEnvironmentNum == 4
+    Test_Diff_InWorkingSubDirectory   #// error in TestEnvironmentNum == 4
     Test_Push_1
     Test_Push_GitWorkingWithoutLocalCommit
     Test_Push_NoCommitNewNoDiff
@@ -37,21 +38,22 @@ function  AllTest() {
     Test_Pull_Merge
     Test_Pull_Conflict
     Test_Pull_IgnoreInRepository
-    Test_Pull_Push_InWorkingSubDirectory
-    Test_Pull_Push_TargetInWorkingDirectory
+    Test_Pull_Push_InWorkingSubDirectory   #// error in TestEnvironmentNum == 4
+    Test_Pull_Push_TargetInWorkingDirectory   #// error in TestEnvironmentNum == 4
     Test_Clone_Pull_Push_Zip
-    Test_PullBase_1
-    Test_PullBase_NoInput
-    Test_PullBase_Conflict
-    Test_PullFile_1
-    Test_InitBarePush_OutOfGitWorking
-    Test_InitBarePush_InGitWorking
+    Test_PullBase_1   #// error in TestEnvironmentNum == 4
+    Test_PullBase_NoInput   #// error in TestEnvironmentNum == 4
+    Test_PullBase_Conflict   #// error in TestEnvironmentNum == 4
+    Test_Pull_Push_File_1
+    Test_InitBarePush_OutOfGitWorking  #// error in TestEnvironmentNum == 4
+    Test_InitBarePush_InGitWorking  #// error in TestEnvironmentNum == 4
     EndOfTest
 }
 
 function  Test_1() {
     echo  ""
     echo  "### Test_1 --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
@@ -79,6 +81,7 @@ function  Test_1() {
 function  Test_Clone() {
     echo  ""
     echo  "### Test_Clone --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p  "_testing/repository/build"
     mkdir -p  "_testing/repository/sub"
@@ -119,22 +122,34 @@ function  Test_Clone() {
 function  Test_ChangeAndClone() {
     echo  ""
     echo  "### Test_ChangeAndClone --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p  "_testing/repository"
 
     #// Set up
         #// Make a repository
+        local  testFolderPath="${PWD}"
+        if IsWindowsFolder  "${testFolderPath}"; then
+            RsyncToTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+            testFolderPath="${LOCOMMIT_TMP}${testFolderPath}"
+            pushd  "${testFolderPath}" > /dev/null  ||  Error
+            local  rsyncUsed="${True}"
+        else
+            local  rsyncUsed="${False}"
+        fi
         echo "x" > "_testing/repository/edit.txt"
         echo "x" > "_testing/repository/ignored.txt"
         echo ".commit"    > "_testing/repository/.gitignore"
         echo ".commit_*" >> "_testing/repository/.gitignore"
         pushd  "_testing/repository"  > /dev/null
-        git init ${GitInitOption}  > /dev/null  2>&1
-        git config --local user.email "${LocommitEMail}"
-        git config --local user.name  "${LocommitUser}"
+        GitInit
         git add "."  > /dev/null  2>&1
         git commit  -m "Already files exist"  > /dev/null  2>&1
         popd  > /dev/null
+        if [ "${rsyncUsed}" == "${True}" ]; then
+            RsyncFromTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+            popd  > /dev/null
+        fi
 
         #// Edit files in the repository folder
         echo "edited"       > "_testing/repository/edit.txt"
@@ -148,18 +163,32 @@ function  Test_ChangeAndClone() {
     if [ "$( cat    "_testing/a/work/edit.txt" )" != "edited" ]; then  Error  ;fi
     AssertNotExist  "_testing/a/work/ignored.txt"
     if [ "$( cat    "_testing/a/work/new.txt" )" != "new" ]; then  Error  ;fi
-    rm -rf  "_testing/a/work"
+    DeleteFolder  "_testing/a/work"
 
     #// Set up
     echo  "Error test:"
     echo ".commit"    > "_testing/repository/.gitignore"
     echo ".commit_*" >> "_testing/repository/.gitignore"
+    local  testFolderPath="${PWD}"
+    if IsWindowsFolder  "${testFolderPath}"; then
+        RsyncToTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        testFolderPath="${LOCOMMIT_TMP}${testFolderPath}"
+        pushd  "${testFolderPath}" > /dev/null  ||  Error
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
+    fi
+
     pushd  "_testing/repository"  > /dev/null
     git reset  > /dev/null
     echo "edited2"  > "edit.txt"
     git add           "edit.txt"
     local  statusBefore="$( git status --short )"
     popd  > /dev/null
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
+    fi
 
     #// Main
     "${LocommitCommand}" clone "_testing/repository" "_testing/a/work"  &&  Error
@@ -176,6 +205,7 @@ function  Test_ChangeAndClone() {
 function  Test_Clone_File() {
     echo  ""
     echo  "### Test_Clone_File --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
 
     #// Set up
@@ -193,12 +223,35 @@ function  Test_Clone_File() {
     AssertReadOnly     "_testing/a/work/.commit/example.txt"
     AssertNotExist     "_testing/a/work/.commit/not_used_in_repository.txt"
     AssertNotExist     "_testing/a/work/.git"
+
+    #// Error case of destination file exists
+    echo  "$ locommit clone  _testing/repository/  _testing/a/work  --file  example.txt"
+    "${LocommitCommand}" clone "_testing/repository/"  "_testing/a/work"  --file "example.txt"  &&  Error
+
+    #// Case of destination base folder exists
+    mkdir -p  "_testing/a/work"
+    if [ "${TestEnvironmentNum}" == 4 ]; then
+        SetNotReadOnly  "_testing/a/work/.commit/example.txt"
+    fi
+    rm  "_testing/a/work/example.txt"
+    rm  "_testing/a/work/.commit/example.txt"
+    echo "y" > "_testing/repository/example.txt"
+
+    echo  "$ locommit clone  _testing/repository/  _testing/a/work  --file  example.txt"
+    "${LocommitCommand}" clone "_testing/repository/"  "_testing/a/work"  --file "example.txt"  ||  Error
+
+    #// Check
+    AssertContents     "_testing/a/work/example.txt"  "y"
+    AssertNotReadOnly  "_testing/a/work/example.txt"
+    AssertContents     "_testing/a/work/.commit/example.txt"  "y"
+    AssertReadOnly     "_testing/a/work/.commit/example.txt"
     DeleteFolder  "_testing"
 }
 
 function  Test_InWorkingDirectory() {
     echo  ""
     echo  "### Test_InWorkingDirectory --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
@@ -208,9 +261,7 @@ function  Test_InWorkingDirectory() {
     echo ".commit_*" >> "_testing/.gitignore"
 
     pushd "_testing" > /dev/null
-    git init ${GitInitOption}  > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "."  > /dev/null  2>&1
     git commit  -m "temporary"  > /dev/null  2>&1
     AssertExist  ".git"
@@ -232,6 +283,7 @@ function  Test_InWorkingDirectory() {
 function  Test_InWorkingSubDirectory() {
     echo  ""
     echo  "### Test_InWorkingSubDirectory --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/sub/build"
     echo "x" > "_testing/sub/build/out"
@@ -239,9 +291,7 @@ function  Test_InWorkingSubDirectory() {
     echo "build" > "_testing/sub/.gitignore"
 
     pushd "_testing" > /dev/null
-    git init ${GitInitOption}  > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "."  > /dev/null  2>&1
     git commit  -m "temporary"  > /dev/null  2>&1
     cd  "sub"
@@ -259,7 +309,7 @@ function  Test_InWorkingSubDirectory() {
     AssertReadOnly  "_testing/sub/.commit/.gitignore"
 
     #// Check if no error of submodule, when git add is run.
-    rm -rf  "_testing/sub/.git"
+    DeleteFolder  "_testing/sub/.git"
     echo  "a" >  "_testing/sub/a"
     pushd "_testing" > /dev/null
     echo  "git status"
@@ -274,6 +324,7 @@ function  Test_InWorkingSubDirectory() {
 function  Test_NoUpdate() {  #// Base test is "Test_1"
     echo  ""
     echo  "### Test_NoUpdate --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
@@ -302,6 +353,7 @@ function  Test_NoUpdate() {  #// Base test is "Test_1"
 function  Test_NoModifiedConflict() {  #// Base test is "Test_1"
     echo  ""
     echo  "### Test_NoModifiedConflict --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     echo "x" > "_testing/build/out"
@@ -336,6 +388,7 @@ function  Test_NoModifiedConflict() {  #// Base test is "Test_1"
 function  Test_NoGitOption() {
     echo  ""
     echo  "### Test_NoGitOption --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// .git folder
     DeleteFolder  "_testing"
@@ -347,9 +400,7 @@ function  Test_NoGitOption() {
     echo ".commit_*" >> "_testing/.gitignore"
 
     pushd "_testing" > /dev/null
-    git init ${GitInitOption}  > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "."  > /dev/null  2>&1
     git commit  -m "temporary"  > /dev/null  2>&1
     AssertExist  ".git"
@@ -380,6 +431,7 @@ function  Test_NoGitOption() {
 function  Test_Diff() {  #// Base test is "Test_1"
     echo  ""
     echo  "### Test_Diff --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
@@ -407,6 +459,7 @@ function  Test_Diff() {  #// Base test is "Test_1"
 function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Test_InWorkingDirectory"
     echo  ""
     echo  "### Test_Diff_InWorkingDirectory --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/build"
     mkdir -p "_testing/.commit"
@@ -417,9 +470,7 @@ function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Te
     echo "2"       > "_testing/.commit/example.txt"
 
     pushd "_testing" > /dev/null
-    git init ${GitInitOption}  > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "."  > /dev/null  2>&1
     git commit  -m "temporary"  > /dev/null  2>&1
 
@@ -441,6 +492,7 @@ function  Test_Diff_InWorkingDirectory() {  #// Base test is "Test_Diff" and "Te
 function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWorkingDirectory" and "Test_InWorkingSubDirectory"
     echo  ""
     echo  "### Test_Diff_InWorkingSubDirectory --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     mkdir -p "_testing/sub/build"
     mkdir -p "_testing/sub/.commit"
@@ -451,9 +503,7 @@ function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWor
     echo "2"       > "_testing/sub/.commit/example.txt"
 
     pushd "_testing" > /dev/null
-    git init ${GitInitOption}  > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "."  > /dev/null  2>&1
     git commit  -m "temporary"  > /dev/null  2>&1
     cd  "sub"
@@ -477,6 +527,7 @@ function  Test_Diff_InWorkingSubDirectory() {  #// Base test is "Test_Diff_InWor
 function  Test_Push_1() {
     echo  ""
     echo  "### Test_Push_1 --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     MakePushTestFiles
     echo "del" > "_testing/will_delete.txt"
@@ -521,7 +572,8 @@ function  Test_Push_1() {
     AssertNotReadOnly  "_testing/_repository/new X.txt"
     AssertNotReadOnly  "_testing/_repository/.gitignore"
 
-    local  gitStatus="$(cd _testing  &&  GitStatusCurrentFolder)"
+    local  gitStatus="$(cd _testing  &&  git config --local  core.fileMode  false  &&
+        GitStatusCurrentFolder)"
     if [ "${gitStatus}" != "?? ./" ]; then  #// Case of parent .git does not check any status.
         if [ "${gitStatus}" != "" ]; then  TestError;  fi
     fi
@@ -531,18 +583,32 @@ function  Test_Push_1() {
 function  Test_Push_GitWorkingWithoutLocalCommit() {
     echo  ""
     echo  "### Test_Push_GitWorkingWithoutLocalCommit --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     MakePushTestFiles
+    local  testFolderPath="${PWD}"
+    if IsWindowsFolder  "${testFolderPath}"; then
+        RsyncToTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        testFolderPath="${LOCOMMIT_TMP}${testFolderPath}"
+        pushd  "${testFolderPath}" > /dev/null  ||  Error
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
+    fi
 
     pushd "_testing" > /dev/null
-    git init ${GitInitOption}  > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "."  > /dev/null  2>&1
     git commit  -m "temporary"  > /dev/null  2>&1
     AssertExist     ".git"
     AssertNotExist  ".commit"
     AssertNotExist  ".commit_new"
+    popd > /dev/null
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
+    fi
+    pushd "_testing" > /dev/null
 
     echo  "$ locommit push _repository"
     "../${LocommitCommand}" push "_repository"  ||  TestError
@@ -556,6 +622,7 @@ function  Test_Push_GitWorkingWithoutLocalCommit() {
 function  Test_Push_NoCommitNewNoDiff() {
     echo  ""
     echo  "### Test_Push_NoCommitNewNoDiff --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
     MakePushTestFiles
 
@@ -577,6 +644,7 @@ function  Test_Push_NoCommitNewNoDiff() {
 function  Test_Push_NoCommitError() {
     echo  ""
     echo  "### Test_Push_NoCommitError --------------------------------"
+    WaitForFlushIfSharedFolder
     #// Error test of no .commit_new but different contents
     DeleteFolder  "_testing"
     MakePushTestFiles
@@ -604,6 +672,7 @@ function  Test_Push_NoCommitError() {
 function  Test_Push_Null() {
     echo  ""
     echo  "### Test_Push_Null --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -651,8 +720,9 @@ function  Test_Push_Null() {
 }
 
 function  Test_Push_RemovedFiles() {
-    echo ""
-    echo "Test_Push_RemovedFiles"
+    echo  ""
+    echo  "### Test_Push_RemovedFiles --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
         DeleteFolder  "_testing"
@@ -701,8 +771,9 @@ function  Test_Push_RemovedFiles() {
 }
 
 function  Test_Push_SameOrParentFolderError() {
-    echo ""
-    echo "Test_Push_SameOrParentFolderError"
+    echo  ""
+    echo  "### Test_Push_SameOrParentFolderError --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
         DeleteFolder  "_testing"
@@ -745,6 +816,7 @@ function  Test_Push_SameOrParentFolderError() {
 function  Test_Pull_1() {
     echo  ""
     echo  "### Test_Pull_1 --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -811,6 +883,7 @@ function  Test_Pull_1() {
 function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
     echo  ""
     echo  "### Test_Pull_NoInput --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -831,14 +904,25 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
     echo "a"  > "_testing/_repository/example.txt"
     echo "b" >> "_testing/_repository/example.txt"
     echo "c" >> "_testing/_repository/example.txt"
+    local  testFolderPath="${PWD}"
+    if IsWindowsFolder  "${testFolderPath}"; then
+        RsyncToTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        testFolderPath="${LOCOMMIT_TMP}${testFolderPath}"
+        pushd  "${testFolderPath}" > /dev/null  ||  Error
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
+    fi
 
     pushd "_testing/_repository" > /dev/null
-    git init ${GitInitOption} > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "." > /dev/null
     git commit -m "1st" > /dev/null
     popd > /dev/null
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
+    fi
 
     #// pull command
     echo  "$ locommit"
@@ -916,6 +1000,7 @@ function  Test_Pull_NoInput() {  #// Base test is "Test_Pull_1"
 function  Test_Pull_Merge() {
     echo  ""
     echo  "### Test_Pull_Merge --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -936,13 +1021,25 @@ function  Test_Pull_Merge() {
     echo "a"      > "_testing/_repository/example.txt"
     echo "b"     >> "_testing/_repository/example.txt"
     echo "c new" >> "_testing/_repository/example.txt"
+    local  testFolderPath="${PWD}"
+    if IsWindowsFolder  "${testFolderPath}"; then
+        RsyncToTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        testFolderPath="${LOCOMMIT_TMP}${testFolderPath}"
+        pushd  "${testFolderPath}" > /dev/null  ||  Error
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
+    fi
+
     pushd "_testing/_repository" > /dev/null
-    git init ${GitInitOption} > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "." > /dev/null
     git commit -m "1st" > /dev/null
     popd > /dev/null
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
+    fi
 
     #// pull command
         pushd "_testing" > /dev/null
@@ -995,6 +1092,7 @@ function  Test_Pull_Merge() {
 function  Test_Pull_Conflict() {
     echo  ""
     echo  "### Test_Pull_Conflict --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1018,13 +1116,25 @@ function  Test_Pull_Conflict() {
     echo "b"     >> "_testing/_repository/example.txt"
     echo "c new" >> "_testing/_repository/example.txt"
     echo "in rep" > "_testing/_repository/build/ignore.txt"  #// ignore test case
+    local  testFolderPath="${PWD}"
+    if IsWindowsFolder  "${testFolderPath}"; then
+        RsyncToTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        testFolderPath="${LOCOMMIT_TMP}${testFolderPath}"
+        pushd  "${testFolderPath}" > /dev/null  ||  Error
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
+    fi
+
     pushd "_testing/_repository" > /dev/null
-    git init ${GitInitOption} > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "." > /dev/null
     git commit -m "1st" > /dev/null
     popd > /dev/null
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${testFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
+    fi
 
     #// pull command
         pushd "_testing" > /dev/null
@@ -1104,6 +1214,7 @@ function  Test_Pull_Conflict() {
 function  Test_Pull_IgnoreInRepository() {  #// Base test is "Test_Pull_1"
     echo  ""
     echo  "### Test_Pull_IgnoreInRepository --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1173,15 +1284,14 @@ function  Test_Pull_IgnoreInRepository() {  #// Base test is "Test_Pull_1"
 function  Test_Pull_Push_InWorkingSubDirectory() {
     echo  ""
     echo  "### Test_Pull_Push_InWorkingSubDirectory --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
         DeleteFolder  "_testing"
 
         mkdir -p "_testing"
         pushd  "_testing"  > /dev/null
-        git init ${GitInitOption}  > /dev/null
-        git config --local user.email "${LocommitEMail}"
-        git config --local user.name  "${LocommitUser}"
+        GitInit
         AssertExist  ".git"
         echo ".commit"       > ".gitignore"
         echo ".commit_*"    >> ".gitignore"
@@ -1229,15 +1339,14 @@ function  Test_Pull_Push_InWorkingSubDirectory() {
 function  Test_Pull_Push_TargetInWorkingDirectory() {
     echo ""
     echo "### Test_Pull_Push_TargetInWorkingDirectory --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
 
     mkdir -p "_testing/_repository"
     pushd  "_testing/_repository"  > /dev/null
-    git init ${GitInitOption}  > /dev/null
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     AssertExist  ".git"
     echo  ".commit"      > ".gitignore"
     echo  ".commit_*"   >> ".gitignore"
@@ -1265,7 +1374,7 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
     #// Make a ".commit" folder
     pushd  "_testing"  > /dev/null
     echo  "$ rm -rf .git"
-    rm -rf  ".git"
+    DeleteFolder  ".git"
     echo  "$ locommit"
     "../${LocommitCommand}"  ||  TestError
     popd  > /dev/null
@@ -1331,6 +1440,7 @@ function  Test_Pull_Push_TargetInWorkingDirectory() {
 function  Test_Clone_Pull_Push_Zip() {
     echo ""
     echo "### Test_Clone_Pull_Push_Zip --------------------------------"
+    WaitForFlushIfSharedFolder
     DeleteFolder  "_testing"
 
     #// Set up
@@ -1361,7 +1471,7 @@ function  Test_Clone_Pull_Push_Zip() {
     AssertContents  "_testing/work/example1.txt"  "x"
 
     #// Main: pull
-    rm -rf  "_testing/work/.commit"
+    DeleteFolder  "_testing/work/.commit"
     pushd "_testing/work" > /dev/null
     echo  "$ locommit pull  ../repository"
 
@@ -1399,6 +1509,7 @@ function  Test_Clone_Pull_Push_Zip() {
 function  Test_PullBase_1() {  #// Base test is "Test_Pull_1"
     echo ""
     echo "### Test_PullBase_1 --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1456,6 +1567,7 @@ function  Test_PullBase_1() {  #// Base test is "Test_Pull_1"
 function  Test_PullBase_NoInput() {  #// Base tests are "Test_PullBase_1" and "Test_Pull_NoInput"
     echo  ""
     echo  "### Test_PullBase_NoInput --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1524,6 +1636,7 @@ function  Test_PullBase_NoInput() {  #// Base tests are "Test_PullBase_1" and "T
 function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "Test_Pull_Conflict"
     echo  ""
     echo  "### Test_PullBase_Conflict --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1621,9 +1734,10 @@ function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "
     DeleteFolder  "_testing"
 }
 
-function  Test_PullFile_1() {
+function  Test_Pull_Push_File_1() {
     echo  ""
-    echo  "### Test_PullFile_1 --------------------------------"
+    echo  "### Test_Pull_Push_File_1 --------------------------------"
+    WaitForFlushIfSharedFolder
 
     #// Set up
     DeleteFolder  "_testing"
@@ -1654,47 +1768,77 @@ function  Test_PullFile_1() {
     if [ "${exitCode}" != "0" ]; then
         TestError  "Failed"
     fi
-    AssertContents  "_testing/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/example.txt"          'a\nb\nc new\n'
+    AssertContents  "_testing/.commit/example.txt"  'a\nb\nc\n'
     AssertNotExist  "_testing/not_used.txt"
-    AssertExist     "_testing/.commit_ours"
-    AssertExist     "_testing/.commit_theirs"
-    AssertNotExist  "_testing/.commit_new"
-    AssertExist     "_testing/.commit"
+    AssertNotExist  "_testing/.commit_ours/example.txt"
+    AssertNotExist  "_testing/.commit_theirs/example.txt"
+    AssertNotExist  "_testing/.commit_new/example.txt"
 
-    #// push command
+    #// Case of pull command conflict
+    SetNotReadOnly    "_testing/.commit/example.txt"
+    echo "new work" > "_testing/example.txt"
+    echo "old"      > "_testing/.commit/example.txt"
+    echo "new rep"  > "_testing/_repository/example.txt"
+
+    #// pull command
     pushd "_testing" > /dev/null
-    echo  "$ locommit"
-    "../${LocommitCommand}"  ||  TestError
-    popd > /dev/null
 
-    AssertExist  "_testing/.commit_new"
-
-    pushd "_testing" > /dev/null
-    echo  "n"  >  "not_used_ours.txt"
-    echo  "$ locommit push _repository/example.txt"
-    "../${LocommitCommand}" push "_repository/example.txt"
+    echo  "$ locommit pull  _repository  --file  example.txt"
+    "../${LocommitCommand}" pull "_repository"  --file  "example.txt"
     local  exitCode=$?
     popd > /dev/null
     if [ "${exitCode}" != "0" ]; then
         TestError  "Failed"
     fi
-    AssertContents  "_testing/_repository/example.txt"  'a\nb\nc new\n'
+    AssertContents  "_testing/example.txt"                 "<<<<<<< HEAD\nnew work\n=======\nnew rep\n>>>>>>> __locommit_commit_theirs"
+    AssertExist     "_testing/.commit/example.txt"         "old"
+    AssertContents  "_testing/.commit_ours/example.txt"    "new work"
+    AssertContents  "_testing/.commit_theirs/example.txt"  "new rep"
+    AssertNotExist  "_testing/.commit_new/example.txt"
+
+    #// Resolve conflict
+    echo "updated" > "_testing/example.txt"
+
+    #// push command
+    pushd "_testing" > /dev/null
+
+    echo  "$ locommit"
+    "../${LocommitCommand}"  ||  TestError
+    popd > /dev/null
+    AssertExist  "_testing/.commit_new"
+
+    pushd "_testing" > /dev/null
+    echo  "n"  >  "not_used_ours.txt"
+    echo  "$ locommit push _repository/example.txt"
+
+    "../${LocommitCommand}" push "_repository"  --file  "example.txt"
+    local  exitCode=$?
+    popd > /dev/null
+    if [ "${exitCode}" != "0" ]; then
+        TestError  "Failed"
+    fi
+    AssertContents  "_testing/example.txt"              "updated"
+    AssertContents  "_testing/.commit/example.txt"      "updated"
+    AssertContents  "_testing/_repository/example.txt"  "updated"
     AssertNotExist  "_testing/_repository/not_used_ours.txt"
-    AssertNotExist  "_testing/.commit_ours"
-    AssertNotExist  "_testing/.commit_theirs"
-    AssertNotExist  "_testing/.commit_new"
+    AssertNotExist  "_testing/.commit_ours/example.txt"
+    AssertNotExist  "_testing/.commit_theirs/example.txt"
+    AssertNotExist  "_testing/.commit_new/example.txt"
     DeleteFolder  "_testing"
 }
 
 function  Test_InitBarePush_OutOfGitWorking() {
     echo  ""
     echo  "### Test_InitBarePush_OutOfGitWorking --------------------------------"
+    WaitForFlushIfSharedFolder
     Test_InitBarePush_Sub  "out"  "--branch  develop"  "develop"
 }
 
 function  Test_InitBarePush_InGitWorking() {
     echo  ""
     echo  "### Test_InitBarePush_InGitWorking --------------------------------"
+    WaitForFlushIfSharedFolder
     Test_InitBarePush_Sub  "in"  ""  "feature"
 }
 
@@ -1714,9 +1858,7 @@ function  Test_InitBarePush_Sub() {
     echo ".commit_*" >> "_testing/.gitignore"
     if [ "${gitWorking}" == "in" ]; then
         pushd  "_testing"  >  /dev/null
-        git init ${GitInitOption}  > /dev/null  2>&1
-        git config --local user.email "${LocommitEMail}"
-        git config --local user.name  "${LocommitUser}"
+        GitInit
         git checkout -b  "${expectedBranch}"
         git add "."  > /dev/null  2>&1
         git commit  -m "test-locommit)"  > /dev/null  2>&1
@@ -1762,6 +1904,12 @@ function  Test_InitBarePush_Sub() {
     DeleteFolder  "_testing"
     DeleteFolder  "_repository"
     DeleteFolder  "_working"
+}
+
+function  WaitForFlushIfSharedFolder() {
+    if [ "${TestEnvironmentNum}" == 4 ]; then
+        : #sleep 2s
+    fi
 }
 
 function  MakePushTestFiles() {
@@ -1906,15 +2054,31 @@ function  CopyFolder() {
     fi
 }
 
+function  Test_DeleteFolder() {
+    echo  ""
+    echo  "### Test_DeleteFolder --------------------------------"
+
+    mkdir -p  "_testing"
+    echo  "readonly" > "_testing/readonly"
+    chmod 555 "_testing/readonly"
+    DeleteFolder  "_testing"
+}
+
 function  DeleteFolder() {
     local  folderPath="$1"
     local  retryCount=5
+    if [ ! -e "${folderPath}" ]; then
+        return
+    fi
 
+    SetNotReadOnly "${folderPath}"  #// For CentOS7 Vagrant shared folder
     while true; do
+
         rm -rf  "${folderPath}"
-        if [ "$?" == "${True}" ]; then
+        if [ "$?" == 0 ]; then
             return
         fi
+
         retryCount="$(( ${retryCount} - 1 ))"
         if [ "${retryCount}" == "0" ]; then
             Error  "Cannot delete a folder \"${folderPath}\""
@@ -1931,6 +2095,17 @@ function  GetBooleanString() {
     else
         echo  "$1"
     fi
+}
+
+#// StartsWith
+#//     e.g.) if StartsWith  ${wholeString} ${partString}; then
+function  StartsWith() {
+    local  wholeString="$1"
+    local  partString="$2"
+    local  partLength=${#partString}
+
+    #// Set exit code
+    [ "${wholeString:0:${partLength}}" == "${partString}" ]
 }
 
 function  Test_CutLastOf() {
@@ -2066,7 +2241,7 @@ function  Test_Assert() {
     )" && echo "$x" || echo "(assert failed)" )"
     if [ "${out}" != "(assert failed)" ]; then  Error  ;fi
 
-    chmod -w  "_testing/build/out"
+    SetReadOnly  "_testing/build/out"
     AssertReadOnly  "_testing/build/out"
 
     local  out="$(x="$( 
@@ -2074,7 +2249,7 @@ function  Test_Assert() {
     )" && echo "$x" || echo "(assert failed)" )"
     if [ "${out}" != "(assert failed)" ]; then  Error  ;fi
 
-    chmod +w  "_testing/build/out"
+    SetNotReadOnly  "_testing/build/out"
     AssertNotReadOnly  "_testing/build/out"
 
     #// contains space
@@ -2095,7 +2270,7 @@ function  Test_Assert() {
     )" && echo "$x" || echo "(assert failed)" )"
     if [ "${out}" != "(assert failed)" ]; then  Error  ;fi
 
-    chmod -w  "_testing/build/out X"
+    SetReadOnly  "_testing/build/out X"
     AssertReadOnly  "_testing/build/out X"
 
     local  out="$(x="$( 
@@ -2103,7 +2278,7 @@ function  Test_Assert() {
     )" && echo "$x" || echo "(assert failed)" )"
     if [ "${out}" != "(assert failed)" ]; then  Error  ;fi
 
-    chmod +w  "_testing/build/out X"
+    SetNotReadOnly  "_testing/build/out X"
     AssertNotReadOnly  "_testing/build/out X"
 }
 
@@ -2172,6 +2347,139 @@ function  AssertContents() {
     local  result="$(cat "${filePath}")"
     if [ "${result}" != "$( echo -e "${expectedContents}" )" ]; then
         Error  "ERROR: Not expected contents in ${filePath}: ${result}"
+    fi
+}
+
+function  GitInit() {
+    git init ${GitInitOption}  > /dev/null  2>&1  ||  Error
+    git config --local user.email "${LocommitEMail}"
+    git config --local user.name  "${LocommitUser}"
+    git config --local core.fileMode  false
+}
+
+function  RsyncToTemporary() {
+    local  folderPath="$1"
+    local  temporaryPath="$2"
+    test  "${folderPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. folderPath: \"${folderPath}\""
+    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. temporaryPath: \"${temporaryPath}\""
+    mkdir -p  "${temporaryPath}${folderPath}"
+
+    rsync --recursive --delete --times  "${folderPath}/"  "${temporaryPath}${folderPath}/"  ||  Error
+        #// It is necessary to set "--times" for Windows share folder
+}
+
+function  RsyncFromTemporary() {
+    local  folderPathInTemporary="$1"
+    local  temporaryPath="$2"
+    test  "${folderPathInTemporary:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. folderPathInTemporary: \"${folderPathInTemporary}\""
+    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. temporaryPath: \"${temporaryPath}\""
+    StartsWith  "${folderPathInTemporary}/"  "${temporaryPath}/"  ||  Error
+    local  folderPath="${folderPathInTemporary:${#temporaryPath}}"
+    mkdir -p  "${folderPath}"
+    local  readOnlyFiles="$( find "${folderPath}" -type f ! -perm -u=w )"
+    echo  "${readOnlyFiles}"  |  xargs -I{} chmod 777 "{}"  #// For rsync can overwrite files in Windows share folder
+
+    rsync --recursive --delete --times --inplace  "${folderPathInTemporary}/"  "${folderPath}/"  ||  Error
+        #// It is necessary to set "--inplace" for Windows share folder. "--inplace" does not rename in rsync.
+    echo  "${readOnlyFiles}"  |  xargs -I{}  sh -c 'test -e "{}"  &&  chmod 444 "{}"'
+        #// For not changed read only files in Windows share folder
+    return 0
+}
+
+function  IsWindowsFile() {  #// Shared file with Windows in Linux process
+    local  filePath="$1"
+    if [ -d "${filePath}" ]; then Error ;fi
+    if df -h "${filePath}"  |  grep -E '/dev/' > /dev/null; then  #// Linux file system
+        return "${False}"  #// Linux file
+    else
+        return "${True}"  #// Windows file
+    fi
+}
+
+function  IsWindowsFile_Bad() {  #// Shared file with Windows in Linux process
+    local  filePath="$1"
+    if [ -d "${filePath}" ]; then Error ;fi
+    local  oldChmod="$( stat --format '%a' "${filePath}" )"
+
+    chmod 444  "${filePath}"
+sleep 1s
+    local  newChmod="$( stat --format '%a' "${filePath}" )"
+    chmod "${oldChmod}"  "${filePath}"
+echo "${newChmod}"  #// with sleep 1s: 555, without sleep 1s: 444 ... Bad
+
+    if [ "${newChmod}" == "555" ]; then
+        return "${True}"  #// Windows file
+    else
+        return "${False}"  #// Linux file
+    fi
+}
+
+function  IsWindowsFolder() {
+    local  folderPath="$1"
+    echo  "x"  >  "${folderPath}/.commit_tmp"
+    IsWindowsFile  "${folderPath}/.commit_tmp"
+    local  returnValue=$?
+    rm  "${folderPath}/.commit_tmp"
+    return  "${returnValue}"
+}
+
+function  SetReadOnly() {
+    SetReadOnlyOrNot --set-read-only  "$@"
+}
+
+function  SetNotReadOnly() {
+    SetReadOnlyOrNot --set-not-read-only  "$@"
+}
+
+if [ "${READ_ONLY_CHMOD}" == "" ]; then
+    READ_ONLY_CHMOD="a-w"   #// For Linux only
+fi
+if [ "${NOT_READ_ONLY_CHMOD}" == "" ]; then
+    NOT_READ_ONLY_CHMOD="u+w"   #// For Linux only
+fi
+
+function  SetReadOnlyOrNot() {
+    local  operation="$1"
+    local  fileOrFolderPath="$2"
+
+    if [ -f "${fileOrFolderPath}" ]; then
+        local  filePath="${fileOrFolderPath}"
+        if [ "${operation}" == "--set-read-only" ]; then
+            if IsWindowsFile "${filePath}"; then
+
+                chmod 444  "${filePath}"
+            else
+                chmod ${READ_ONLY_CHMOD}  "${filePath}"
+            fi
+        elif [ "${operation}" == "--set-not-read-only" ]; then
+            if IsWindowsFile "${filePath}"; then
+
+                chmod 777  "${filePath}"
+            else
+                chmod ${NOT_READ_ONLY_CHMOD}  "${filePath}"
+            fi
+        fi
+
+    elif [ -d "${fileOrFolderPath}" ]; then
+        local  folderPath="${fileOrFolderPath}"
+        local  filePaths="$( find "${folderPath}"  -type f )"
+        local  firstFilePath="$( echo  "${filePaths}"  |  head -1 )"
+        if [ "${firstFilePath}" != "" ]; then
+            if [ "${operation}" == "--set-read-only" ]; then
+                if IsWindowsFile "${firstFilePath}"; then
+                    echo  "${filePaths}"  |  xargs -I{} chmod 444 "{}"
+                else
+                    echo  "${filePaths}"  |  xargs -I{} chmod ${READ_ONLY_CHMOD} "{}"
+                fi
+            elif [ "${operation}" == "--set-not-read-only" ]; then
+                if IsWindowsFile "${firstFilePath}"; then
+
+                    echo  "${filePaths}"  |  xargs -I{} chmod 777 "{}"
+                else
+                    echo  "${filePaths}"  |  xargs -I{} chmod ${NOT_READ_ONLY_CHMOD} "{}"
+                fi
+            fi
+        fi
     fi
 }
 
@@ -2353,7 +2661,11 @@ function  EndOfTest() {
         message="${message} IsGitWorking = $( GetBooleanString ${IsGitWorking} ),"
         message="${message} InGitWorking = $( GetBooleanString ${InGitWorking} )."
         echo  "${message}"
-        echo  "Also, you must test other environments. All environment numbers are 1,2,3."
+        if [ "${WINDIR}" != "" ]; then  #// Windows
+            echo  "Also, you must test other environments. All environment numbers are 1,2,3."
+        else  #// Linux
+            echo  "Also, you must test other environments. All environment numbers are 1,2,3,4."
+        fi
     fi
 }
 
@@ -2371,6 +2683,18 @@ function  DetectTestEnvironment() {
         TestEnvironmentNum=3
         IsGitWorking="${False}"
         InGitWorking="${True}"
+    fi
+    if [ "${WINDIR}" == "" ]; then  #// Linux
+        local  dfOutput="$( df -h "." )"
+        if echo "${dfOutput}"  |  grep -E '/dev/' > /dev/null; then
+            :  #// NoOperation
+        elif echo "${dfOutput}"  |  grep -E 'vagrant' > /dev/null; then
+            TestEnvironmentNum=4
+            #// git config --local  core.fileMode  false
+            export LOCOMMIT_TMP="/tmp/locommit"
+        else
+            Error  "ERROR: Unknown environment in DetectTestEnvironment"
+        fi
     fi
 }
 

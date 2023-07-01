@@ -71,64 +71,66 @@ function  LocalCommit() {
     else
         outputFolderName=".commit_new"
     fi
+    local  workingFolderPath="${PWD}"
+    if IsWindowsFolder  "${workingFolderPath}"; then
+        RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
+        workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
+        pushd  "${workingFolderPath}" > /dev/null  ||  Error
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
+    fi
 
     #// Copy files by "git checkout-index"
     if [ "${gitWorkingRootPath}" == "" ]; then
-        rm -rf  "${outputFolderName}"
+        DeleteFolder  "${outputFolderName}"
         if [ "${noGitOption}" == "${False}" ]; then
             echo  "Added .git folder and first commit."
-            git init ${GitInitOption}  > /dev/null  2>&1
-            git config --local user.email "${LocommitEMail}"
-            git config --local user.name  "${LocommitUser}"
+            GitInit
             git add "."  > /dev/null  2>&1
             git commit  -m "locommit) Created local working directory"  > /dev/null  2>&1
         else
-            git init ${GitInitOption}  > /dev/null  2>&1
-            git config --local user.email "${LocommitEMail}"
-            git config --local user.name  "${LocommitUser}"
+            GitInit
             git add "."  > /dev/null  2>&1
         fi
         mkdir  "${outputFolderName}"
 
         git checkout-index -fau --prefix="${outputFolderName}/"
         if [ "${noGitOption}" == "${True}" ]; then
-            rm -rf  ".git"  #// Temporary .git
+            DeleteFolder  ".git"  #// Temporary .git
             if [ "${gitIgnoreExists}" == "${False}" ]; then
                 rm  ".gitignore"
                 rm  "${outputFolderName}/.gitignore"
             fi
         fi
     else
-        rm -rf  "${outputFolderName}"
+        DeleteFolder  "${outputFolderName}"
         if [ "${currentFolder}" == "${gitWorkingRootPath}" ]; then
             mkdir -p  "${outputFolderName}"
             mv  ".git"  "${outputFolderName}/.commit_.git"
-            git init ${GitInitOption}  > /dev/null  #// Temporary .git
-            git config --local user.email "${LocommitEMail}"
-            git config --local user.name  "${LocommitUser}"
+            GitInit  #// Temporary .git
             git add  "."  #// checkout new contents
 
             git checkout-index -fau --prefix="${outputFolderName}/"
-            rm -rf  ".git"  #// Temporary .git
+            DeleteFolder  ".git"  #// Temporary .git
             mv  "${outputFolderName}/.commit_.git"  ".git"
         else  #// There is ".git" folder in parent folder.
             local  gitIgnoreExists="${True}"
-            if [ ! -e ".gitignore" ]; then
+            if [ ! -e ".gitignore"  -a  -e "${gitWorkingRootPath}/.gitignore" ]; then
                 gitIgnoreExists="${False}"
                 cat  "${gitWorkingRootPath}/.gitignore"  |  grep -v  "^/"  >  ".gitignore"
             fi
             if [ "${noGitOption}" == "${False}" ]; then
                 echo  "Added .git folder and first commit."
             fi
-            git init ${GitInitOption}  > /dev/null
-            git config --local user.email "${LocommitEMail}"
-            git config --local user.name  "${LocommitUser}"
+            GitInit
             git add  "."
             git commit -m  "locommit) First commit"
 
             git checkout-index -fau --prefix="${outputFolderName}/"
             if [ "${noGitOption}" == "${True}" ]; then
-                rm -rf  ".git"  #// Temporary .git
+                DeleteFolder  ".git"  #// Temporary .git
                 if [ "${gitIgnoreExists}" == "${False}" ]; then
                     rm  ".gitignore"
                     rm  "${outputFolderName}/.gitignore"
@@ -139,12 +141,11 @@ function  LocalCommit() {
 
     #// Set read only
     if [ "${noGitOption}" == "${False}" ]; then
-        find "${outputFolderName}" -type f  |  xargs  -I {} \
-            chmod 444 "{}"
+        SetReadOnly  "${outputFolderName}"
     fi
 
     #// Show conflict file names
-    pushd  "${outputFolderName}" > /dev/null
+    pushd  "${outputFolderName}" > /dev/null  ||  Error
 
     local  conflictOutput=$( grep -rn  "^<<<<<<<"  "."  |  sed  "s/\\(:[0-9][0-9]*:\\)\\([^ ]\\)/\\1 \\2/"  || echo "(ERROR)" )
     popd > /dev/null
@@ -166,7 +167,7 @@ function  LocalCommit() {
         local  diff_output="$( diff -qr  ".commit"  ".commit_new" )"
 
         if [ "${diff_output}" == "" ]; then
-            rm -rf  ".commit_new"
+            DeleteFolder  ".commit_new"
             echo  'Deleted ".commit_new" folder.'
             echo  'SAME as ".commit" folder.'
         else
@@ -177,11 +178,15 @@ function  LocalCommit() {
     fi
 
     if [ "${gitWorkingRootPath}" == ""  -a  "${noGitOption}" == "${True}" ]; then
-        rm -rf  ".git"
+        DeleteFolder  ".git"
     fi
     if [ -e ".commit.zip" ]; then
         echo  'Deleted ".commit" folder extracted from ".commit.zip" file.'
-        rm -rf  ".commit"
+        DeleteFolder  ".commit"
+    fi
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
     fi
 }
 
@@ -196,7 +201,14 @@ function  Clone() {
         return $?
     fi
     pushd  "${repositoryFolderPath}"  > /dev/null
-    CheckIfGitResetState
+    if [ -e ".git" ]; then
+        CheckIfGitResetState
+        if AllFilesAreGitAdd; then
+            local  allFilesAreGitAdd="${True}"
+        else
+            local  allFilesAreGitAdd="${False}"
+        fi
+    fi
     popd  > /dev/null
     repositoryFolderPath=$( ResolvePath "${repositoryFolderPath}" )
     repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
@@ -207,35 +219,63 @@ function  Clone() {
 
     mkdir -p  "${destinationFolderPath}"
     destinationFolderPath="$( readlink -f "${destinationFolderPath}" )"
+    repositoryFolderPath="$( readlink -f "${repositoryFolderPath}" )"
+    if IsWindowsFolder  "${repositoryFolderPath}"; then
+        RsyncToTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
+        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${repositoryFolderPath}\" is Windows shared folder."
+        repositoryFolderPath="${LOCOMMIT_TMP}${repositoryFolderPath}"
+        local  rsyncRepositoryUsed="${True}"
+    else
+        local  rsyncRepositoryUsed="${False}"
+    fi
+    if IsWindowsFolder  "${destinationFolderPath}"; then
+        RsyncToTemporary  "${destinationFolderPath}"  "${LOCOMMIT_TMP}"
+        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${destinationFolderPath}\" is Windows shared folder."
+        destinationFolderPath="${LOCOMMIT_TMP}${destinationFolderPath}"
+        local  rsyncDestinationUsed="${True}"
+    else
+        local  rsyncDestinationUsed="${False}"
+    fi
 
     pushd  "${repositoryFolderPath}"  > /dev/null
     if [ -e ".git" ]; then
         local  hasDotGit="${True}"
     else
         local  hasDotGit="${False}"
-        git init ${GitInitOption}  > /dev/null  2>&1
-        git config --local user.email "${LocommitEMail}"
-        git config --local user.name  "${LocommitUser}"
+        GitInit
     fi
     git reset "."  > /dev/null
     git rm -r --cached  "."  > /dev/null  2>&1
     git add "."  > /dev/null  2>&1
-    mkdir -p  "${destinationFolderPath}"
 
     git checkout-index -fau --prefix="${destinationFolderPath}/.commit/"
-    git reset "."  > /dev/null
+    if [ "${allFilesAreGitAdd}" == "${False}" ]; then
+        git reset "."  > /dev/null
+    fi
+    if [ ! -e "${destinationFolderPath}/.commit/" ]; then  #// Error
+        rm -rf  "${destinationFolderPath}"
+        if [ "${rsyncDestinationUsed}" == "${True}" ]; then
+            destinationFolderPath="${destinationFolderPath:${#LOCOMMIT_TMP}}"
+            rm -rf  "${destinationFolderPath}"
+        fi
+        if [ "${hasDotGit}" == "${False}" ]; then
+            local  message1="\".git\" folder was created and "
+        else
+            local  message1=""
+        fi
+        Error  "ERROR: ${message1}\"git checkout-index -fau\" command did not copy any files in \"${PWD}\""
+    fi
     CopyFolder  "${destinationFolderPath}/.commit"  "${destinationFolderPath}"
-    find  "${destinationFolderPath}/.commit" -type f  |  xargs  -I {} \
-        chmod 444 "{}"
+    SetReadOnly  "${destinationFolderPath}/.commit"
     if [ "${hasDotGit}" == "${False}" ]; then
-        rm -rf  "${repositoryFolderPath}/.git"
+        DeleteFolder  "${repositoryFolderPath}/.git"
     fi
     if [ "${Options_ZipCommit}" == "" ]; then
         echo  'Created new ".commit" folder.'
     else
         pushd "${destinationFolderPath}" > /dev/null
         zip -r  ".commit.zip"  ".commit"  >  /dev/null  ||  Error
-        rm -rf  ".commit"
+        DeleteFolder  ".commit"
         popd > /dev/null
         echo  'Created new ".commit.zip" file.'
     fi
@@ -246,12 +286,17 @@ function  Clone() {
         echo  ".commit_*" >> ".gitignore"
         echo  ".commit.*" >> ".gitignore"
     fi
-    git init ${GitInitOption}  > /dev/null  2>&1
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
+    GitInit
     git add "."  > /dev/null  2>&1
     git commit -m  "locommit) First commit"  > /dev/null
     popd  > /dev/null
+
+    if [ "${rsyncRepositoryUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
+    fi
+    if [ "${rsyncDestinationUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${destinationFolderPath}"  "${LOCOMMIT_TMP}"
+    fi
 }
 
 function  CloneFile() {
@@ -265,8 +310,8 @@ function  CloneFile() {
     repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
     destinationFolderPath="$( CutLastOf "${destinationFolderPath}" "/"  || echo "(ERROR)" )"
     AssertExist  "${repositoryFolderPath}"
-    if [ -e "${destinationFolderPath}" ]; then
-        Error  "fatal: destination path '${destinationFolderPath}' already exists."  128
+    if [ -e "${destinationFolderPath}/${fileRelativePath}" ]; then
+        Error  "fatal: destination path '${destinationFolderPath}/${fileRelativePath}' already exists."  128
     fi
     local  destinationFilePath="${destinationFolderPath}/${fileRelativePath}"
     local  destinationFileParent="${destinationFilePath%/*}"
@@ -274,10 +319,53 @@ function  CloneFile() {
 
     cp -ap  "${repositoryFolderPath}/${fileRelativePath}"  "${destinationFilePath}"
     cp -ap  "${repositoryFolderPath}/${fileRelativePath}"  "${destinationFileParent}/.commit"
-    chmod 444  "${destinationFileParent}/.commit/${fileName}"
+    SetReadOnly  "${destinationFileParent}/.commit/${fileName}"
 }
 
 function  Push() {
+    if [ "${Options_File}" == "" ]; then
+        PushFolder  "$@"
+    else
+        PushFile  "$@"
+    fi
+}
+
+function  PushFile() {
+    local  repositoryFolderPath="$1"
+    local  fileRelativePath="${Options_File}"
+    local  fileName="${fileRelativePath##*/}"
+    local  repositoryFolderPath=$( ResolvePath "${repositoryFolderPath}" )
+    repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
+    ErrorIfLastIs  "${repositoryFolderPath}"  "(ERROR)"
+    if [ "${repositoryFolderPath}" == "" ]; then
+        Error  "Not specified destination repository folder. Run the command: locommit push __RepositoryFolderPath__"
+    fi
+    test  "${repositoryFolderPath}" != "/dev/null"  ||  Error
+    local  filePathInRepository="${repositoryFolderPath}/${fileRelativePath}"
+    local  parentInRepository="${filePathInRepository%/*}"
+    mkdir -p  "${parentInRepository}"
+
+    echo  "Copied \"${fileRelativePath}\" file to \"${repositoryFolderPath}\" folder"
+    cp -ap  "${fileRelativePath}"  "${filePathInRepository}"
+    SetNotReadOnly  ".commit/${fileRelativePath}"
+
+    cp -ap  "${fileRelativePath}"  ".commit/${fileRelativePath}"
+    SetReadOnly  ".commit/${fileRelativePath}"
+
+    local  deletingFiles=(
+        ".commit_new/${fileRelativePath}"
+        ".commit_ours/${fileRelativePath}"
+        ".commit_theirs/${fileRelativePath}"
+        ".commit_old_ours/${fileRelativePath}"
+        ".commit_old_base/${fileRelativePath}"
+    )
+    for filePath in "${deletingFiles[@]}" ;do
+        SetNotReadOnly  "${filePath}"
+        rm -f  "${filePath}"
+    done
+}
+
+function  PushFolder() {
     local  repositoryFolderPath="$1"
     local  repositoryFolderPath=$( ResolvePath "${repositoryFolderPath}" )
     repositoryFolderPath="$( CutLastOf "${repositoryFolderPath}" "/"  || echo "(ERROR)" )"
@@ -286,7 +374,7 @@ function  Push() {
         Error  "Not specified destination repository folder. Run the command: locommit push __RepositoryFolderPath__"
     fi
     if [ -e ".commit.zip" ]; then
-        rm -rf  ".commit"
+        DeleteFolder  ".commit"
         unzip  ".commit.zip"  >  /dev/null
     fi
     if [ ! -e ".commit" ]; then
@@ -304,9 +392,9 @@ function  Push() {
     if [ "${source}" == ".commit" ]; then
         LocalCommit > /dev/null
         if [ -e ".commit_new" ]; then
-            rm -rf  ".commit_new"
+            DeleteFolder  ".commit_new"
             if [ -e ".commit.zip" ]; then
-                rm -rf  ".commit"
+                DeleteFolder  ".commit"
             fi
             Error  "push command requires .commit_new folder, if update file exists. Run locommit command."
         fi
@@ -325,8 +413,7 @@ function  Push() {
         #// Copy files and disable read only
         echo  "Copied files and disabled read only to \"${repositoryFolderPath}\" folder"
         CopyFolder  "${source}"  "${repositoryFolderPath}"  "--exclude=./.git"
-        find "${repositoryFolderPath}" -type f  |  xargs -I {} \
-            chmod +w "{}"
+        SetNotReadOnly  "${repositoryFolderPath}"
 
         #// Delete deleted files
         if [ "${source}" == ".commit_new" ]; then
@@ -339,11 +426,27 @@ function  Push() {
                 local  oldIFS="$IFS"
                 IFS=$'\n'
                 for fileName in ${deletingFileNames}; do
+                    SetNotReadOnly  "${repositoryFolderPath}/${fileName}"
                     rm -f  "${repositoryFolderPath}/${fileName}"
                 done
                 IFS="$oldIFS"
             fi
         fi
+    fi
+    DeleteFolder ".commit_ours"
+    DeleteFolder ".commit_theirs"
+    DeleteFolder ".commit_old_ours"
+    DeleteFolder ".commit_old_base"
+
+    local  workingFolderPath="${PWD}"
+    if IsWindowsFolder  "${workingFolderPath}"; then
+        RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
+        workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
+        pushd  "${workingFolderPath}" > /dev/null  ||  Error
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
     fi
 
     #// (.commit_new case) Update .commit folder
@@ -353,17 +456,17 @@ function  Push() {
         else
             echo  "Compress and moved \".commit_new\" to \".commit.zip\" file"
         fi
-        rm -rf  ".commit"
+        DeleteFolder  ".commit"
+
         mv  ".commit_new"  ".commit"
         if [ -e ".commit.zip" ]; then
+            if IsWindowsFolder  "${workingFolderPath}"; then
+                sleep 1s
+            fi
             zip -r  ".commit.zip"  ".commit"  >  /dev/null  ||  Error
-            rm -rf  ".commit"
+            DeleteFolder  ".commit"
         fi
     fi
-    rm -rf ".commit_ours"
-    rm -rf ".commit_theirs"
-    rm -rf ".commit_old_ours"
-    rm -rf ".commit_old_base"
 
     #// git commit
     if [ -e ".git" ]; then
@@ -371,6 +474,10 @@ function  Push() {
             git add "."
             git commit  -m "locommit push) Updated." > /dev/null
         fi
+    fi
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
     fi
 }
 
@@ -381,7 +488,7 @@ function  PushWithoutLocalCommit() {
     if [ ! -e ".git" ]; then
         Error  "locommit push command requires \".commit\" or \".git\" folder."
     fi
-    rm -rf  "${outputFolderPath}"
+    DeleteFolder  "${outputFolderPath}"
     mkdir  "${outputFolderPath}"
 
     git checkout-index -fau --prefix="${outputFolderPath}/"
@@ -415,6 +522,7 @@ function  PullSub() {
     if [ "${baseFolderRelativePath:0:2}" == ".." ]; then  Error;  fi
     if [ "${baseFolderRelativePath:0:1}" == "/" ]; then  Error;  fi
     AssertExist  "${repositoryFolderPath}"
+    repositoryFolderPath="$( readlink -f "${repositoryFolderPath}" )"
     if [ -e ".commit"  -a  -e ".commit.zip" ]; then
         Error  "ERROR: Remove \".commit\" or \".commit.zip\"."
     fi
@@ -424,6 +532,21 @@ function  PullSub() {
     local  source=".commit_new"
     if [ ! -e ".commit_new" ]; then
         source=".commit"
+    fi
+    local  workingFolderPath="${PWD}"
+    if IsWindowsFolder  "${workingFolderPath}"; then
+        RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
+        workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
+        pushd  "${workingFolderPath}" > /dev/null  ||  Error
+        local  rsyncWorkingUsed="${True}"
+    else
+        local  rsyncWorkingUsed="${False}"
+    fi
+    if IsWindowsFolder  "${repositoryFolderPath}"; then
+        RsyncToTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
+        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${repositoryFolderPath}\" is Windows shared folder."
+        repositoryFolderPath="${LOCOMMIT_TMP}${repositoryFolderPath}"
     fi
 
     #// Create ".commit_new" folder
@@ -439,7 +562,7 @@ function  PullSub() {
         unzip  ".commit.zip"  >  /dev/null
     fi
     if [ "${option}" == "--pull-base" ]; then
-        rm -rf  "${source}/${baseFolderRelativePath}"
+        DeleteFolder  "${source}/${baseFolderRelativePath}"
     fi
 
     #// Create ".commit_theirs" folder
@@ -452,7 +575,7 @@ function  PullSub() {
         fi
 
         #// Create ".commit_theirs" folder
-        rm -rf  ".commit_theirs"
+        DeleteFolder  ".commit_theirs"
         pushd  "${repositoryFolderPath}" > /dev/null
 
         LocalCommit --no-git > /dev/null
@@ -470,15 +593,15 @@ function  PullSub() {
 
     #// Create ".commit_ours" folder
     if [ "${source}" == ".commit_new" ]; then
-        rm -rf  ".commit_ours"
+        DeleteFolder  ".commit_ours"
         mv  ".commit_new"  ".commit_ours"
         echo  "Renamed \".commit_new\" folder to \".commit_ours\" folder"
     else
-        rm -rf    ".commit_ours"
+        DeleteFolder    ".commit_ours"
         mkdir -p  ".commit_ours"
         ls -a ".commit" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
             cp -Rap  ".commit/{}"  ".commit_ours"
-        rm -rf  ".commit_ours/.git"
+        DeleteFolder  ".commit_ours/.git"
         echo  "Copied \".commit\" folder to \".commit_ours\" folder"
     fi
 
@@ -522,9 +645,7 @@ function  PullSub() {
                 cp -Rap  ".git/{}"  "../.commit_theirs/.git"
             mv  ".git"  ".."
         else
-            git init ${GitInitOption}  > /dev/null  ||  Error
-            git config --local user.email "${LocommitEMail}"
-            git config --local user.name  "${LocommitUser}"
+            GitInit
             git add  "."
             git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
             currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
@@ -542,25 +663,25 @@ function  PullSub() {
         fi
         git checkout -b "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
         if [ "${option}" == "--pull-base" ]; then
-            rm -rf  "${baseFolderRelativePath}"
+            DeleteFolder  "${baseFolderRelativePath}"
         fi
         git add "." > /dev/null
         git commit  -m "locommit pull) commit_theirs" > /dev/null  #// Ignore this command errors
         local  oldCommitID=$( git rev-parse --short "${currentBranch}"  || echo "(ERROR)" )
-        local  othersCommitID=$( git rev-parse --short __locommit_commit_theirs  || echo "(ERROR)" )
+        local  theirsCommitID=$( git rev-parse --short __locommit_commit_theirs  || echo "(ERROR)" )
         ErrorIfLastIs  "${oldCommitID}"  "(ERROR)"
-        ErrorIfLastIs  "${othersCommitID}"  "(ERROR)"
+        ErrorIfLastIs  "${theirsCommitID}"  "(ERROR)"
         mkdir -p "../.commit_temporary"
         mv  ".git"  "../.commit_temporary"
 
     #// Change current branch
         cd  "../.commit_temporary"
         git checkout "${currentBranch}" > /dev/null 2>&1  ||  Error
-        rm -rf  "../.git"
+        DeleteFolder  "../.git"
         mv  ".git"  ".."
         cd  ".."
         mv  ".commit_temporary"  ".commit_temporary_deleting"
-        rm -rf  ".commit_temporary_deleting"  #// This command is sometimes rejected because device or resource busy
+        DeleteFolder  ".commit_temporary_deleting"  #// This command is sometimes rejected because device or resource busy
     popd > /dev/null
 
     #// Merge
@@ -570,7 +691,7 @@ function  PullSub() {
         git add "."
         git commit  -m "locommit pull) commit_ours" > /dev/null
     fi
-    if [ "${othersCommitID}" != "${oldCommitID}" ]; then
+    if [ "${theirsCommitID}" != "${oldCommitID}" ]; then
 
         local  mergeLog="$( git merge  "__locommit_commit_theirs" --no-edit  2>&1  ||  echo "(ERROR)" )"
         if echo "${mergeLog}" | grep "Abort."; then
@@ -579,13 +700,13 @@ function  PullSub() {
         fi
     fi
     if [ "${parentDotGit}" == "${True}" ]; then
-        rm -rf  ".git"
+        DeleteFolder  ".git"
     else
         git branch -D  "__locommit_commit_theirs"  > /dev/null
     fi
 
     #// Restore .git folder and stage before pull files
-    if [ "${othersCommitID}" != "${oldCommitID}" ]; then
+    if [ "${theirsCommitID}" != "${oldCommitID}" ]; then
         if [ -e ".commit/.git" ]; then
             cd  ".commit_ours"
             mv  "../.commit/.git"  "."
@@ -610,19 +731,27 @@ function  PullSub() {
             echo  "Updated files by this merge from new \"${baseFolderPath}\" folder:"
         fi
         EchoWithIndent  "${diff_output}"  "    "
+        if [ -e ".commit.zip" ]; then
+            echo  'Deleted ".commit" folder extracted from ".commit.zip" file.'
+            DeleteFolder  ".commit"
+        fi
     else
         echo  'Renamed ".commit_ours" folder to ".commit_new" folder'
         echo  'Deleted ".commit_theirs" folder'
-        echo  'Pull command did not change any files.'
         if [ -e ".commit/.git" ]; then
             mv  ".commit/.git"  "."
         fi
         mv  ".commit_ours"  ".commit_new"
-        rm -rf  ".commit_theirs"
+        DeleteFolder  ".commit_theirs"
+        if [ -e ".commit.zip" ]; then
+            echo  'Deleted ".commit" folder extracted from ".commit.zip" file.'
+            DeleteFolder  ".commit"
+        fi
+        echo  'Pull command did not change any files.'
     fi
-    if [ -e ".commit.zip" ]; then
-        echo  'Deleted ".commit" folder extracted from ".commit.zip" file.'
-        rm -rf  ".commit"
+    if [ "${rsyncWorkingUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+        popd  > /dev/null
     fi
 }
 
@@ -697,7 +826,19 @@ function  PullFile() {
     if [ "${baseFolderRelativePath:0:2}" == ".." ]; then  Error;  fi
     if [ "${baseFolderRelativePath:0:1}" == "/" ]; then  Error;  fi
     AssertExist  "${repositoryFolderPath}"
+    repositoryFolderPath="$( readlink -f "${repositoryFolderPath}" )"
     AssertExist  ".commit"
+
+    if diff  "${repositoryFolderPath}/${fileRelativePath}"  ".commit/${fileRelativePath}" > /dev/null; then  #// If a file in repository does not changed
+        echo  "Pull command did not change any file."
+        return
+    fi
+    if diff  "${fileRelativePath}"  ".commit/${fileRelativePath}" > /dev/null; then  #// If the file in working does not changed
+
+        echo  "Copy a file from \"${repositoryFolderPath}/${fileRelativePath}\" to \"${PWD}/${fileRelativePath}\""
+        cp -ap  "${repositoryFolderPath}/${fileRelativePath}"  "${fileRelativePath}"
+        return
+    fi
 
     #// Create ".commit_theirs" folder
     local  destination=".commit_theirs/${fileRelativePath}"
@@ -706,7 +847,7 @@ function  PullFile() {
     rm -f  ".commit_theirs/${fileRelativePath}"
 
     cp  "${repositoryFolderPath}/${fileRelativePath}"  ".commit_theirs/${fileRelativePath}"
-    chmod 444  ".commit_theirs/${fileRelativePath}"
+    SetReadOnly  ".commit_theirs/${fileRelativePath}"
     echo  "Copied a file in repository folder to \".commit_theirs\" folder"
 
     #// Create ".commit_ours" folder
@@ -716,38 +857,46 @@ function  PullFile() {
     rm -f  ".commit_ours/${fileRelativePath}"
 
     cp  "${fileRelativePath}"  ".commit_ours/${fileRelativePath}"
-    chmod 444  ".commit_ours/${fileRelativePath}"
+    SetReadOnly  ".commit_ours/${fileRelativePath}"
     echo  "Copied a file in current folder to \".commit_ours\" folder"
 
     #// Merge
     #// source: ".commit_theirs" folder
     #// destination: current folder
-    rm -rf    ".commit_merging"
+    DeleteFolder    ".commit_merging"
     mkdir -p  ".commit_merging"
-    pushd  ".commit_merging" > /dev/null
+    local  mergingFolderPath="$( readlink -f ".commit_merging" )"
+    if IsWindowsFolder  "${mergingFolderPath}"; then
+        RsyncToTemporary  "${mergingFolderPath}"  "${LOCOMMIT_TMP}"
+        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${mergingFolderPath}\" is Windows shared folder."
+        mergingFolderPath="${LOCOMMIT_TMP}${mergingFolderPath}"
+        local  rsyncUsed="${True}"
+    else
+        local  rsyncUsed="${False}"
+    fi
+    local  currentFolder="${PWD}"
+    pushd  "${mergingFolderPath}" > /dev/null  ||  Error
 
         #// Make common commit
-        cp  "../.commit/${fileRelativePath}"  "."
-        chmod 644  "${fileName}"
-        git init ${GitInitOption}  > /dev/null  ||  Error
-        git config --local user.email "${LocommitEMail}"
-        git config --local user.name  "${LocommitUser}"
+        cp  "${currentFolder}/.commit/${fileRelativePath}"  "."
+        SetNotReadOnly  "${fileName}"
+        GitInit
         git add  "." > /dev/null
         git commit  -m "locommit pull) Created a common commit." > /dev/null  #// Ignore this command errors
         local  currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
         ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
 
         #// Make commit_theirs
-        cp  "../.commit_theirs/${fileRelativePath}"  "."
-        chmod 644  "${fileName}"
+        cp  "${currentFolder}/.commit_theirs/${fileRelativePath}"  "."
+        SetNotReadOnly  "${fileName}"
         git checkout -b "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
         git add "." > /dev/null
         git commit  -m "locommit pull) commit_theirs" > /dev/null  #// Ignore this command errors
 
         #// Make commit_ours
         git checkout "${currentBranch}" > /dev/null 2>&1  ||  Error
-        cp  "../.commit_ours/${fileRelativePath}"  "."
-        chmod 644  "${fileName}"
+        cp  "${currentFolder}/.commit_ours/${fileRelativePath}"  "."
+        SetNotReadOnly  "${fileName}"
         git checkout -b "__locommit_commit_ours" > /dev/null 2>&1  ||  Error
         git add "." > /dev/null
         git commit  -m "locommit pull) commit_ours" > /dev/null  #// Ignore this command errors
@@ -759,9 +908,12 @@ function  PullFile() {
             Error  "failed: git merge .commit_theirs"
         fi
     popd > /dev/null
+    if [ "${rsyncUsed}" == "${True}" ]; then
+        RsyncFromTemporary  "${mergingFolderPath}"  "${LOCOMMIT_TMP}"
+    fi
 
     cp -ap  ".commit_merging/${fileName}"  "."
-    rm -rf  ".commit_merging"
+    DeleteFolder  ".commit_merging"
 }
 
 function  InitBarePush() {
@@ -786,9 +938,7 @@ function  InitBarePush() {
     AssertNotExist  "${newRepositoryFolderPath}"
     local  currentFolder="${PWD}"
     if [ "${dotGitExistsInCurrentFolder}" == "${False}" ]; then
-        git init ${GitInitOption}  > /dev/null  2>&1
-        git config --local user.email "${LocommitEMail}"
-        git config --local user.name  "${LocommitUser}"
+        GitInit
         git add "."  > /dev/null  2>&1
         git commit  -m "locommit) Created by InitBarePush"  > /dev/null  2>&1
         local  allFilesAreGitAdd="${True}"
@@ -819,7 +969,7 @@ function  InitBarePush() {
     #// Make a commit
     pushd  ".commit_init-bare-push"  >  /dev/null
 
-    git init ${GitInitOption}  > /dev/null  2>&1
+    GitInit
     git remote add origin "file://${newRepositoryFullPath}"
     git checkout -b "${branch}"
     git add "."  > /dev/null  2>&1
@@ -832,7 +982,7 @@ function  InitBarePush() {
     #// Clean
     git status  > /dev/null  #// Change directory in git process(?) for deleting Windows folder
     if [ "${dotGitExistsInCurrentFolder}" == "${False}" ]; then
-        rm -rf "${currentFolder}/.git"
+        DeleteFolder  "${currentFolder}/.git"
     fi
     DeleteFolder  ".commit_init-bare-push"
     AssertNotExist  ".commit_init-bare-push"
@@ -854,7 +1004,14 @@ function  AllFilesAreGitAdd() {
     fi
 }
 
-function  CheckIfGitResetState() {
+function  GitInit() {
+    git init ${GitInitOption}  > /dev/null  2>&1  ||  Error
+    git config --local user.email "${LocommitEMail}"
+    git config --local user.name  "${LocommitUser}"
+    git config --local core.fileMode  false
+}
+
+function  CheckIfGitResetState() {  #// All files are git added or not git added
     local  status="$( git status --short )"
 
     #// Error, if one or more files are git added
@@ -984,18 +1141,131 @@ function  CopyFolder() {
 function  DeleteFolder() {
     local  folderPath="$1"
     local  retryCount=5
+    if [ ! -e "${folderPath}" ]; then
+        return
+    fi
 
+    SetNotReadOnly "${folderPath}"  #// For CentOS7 Vagrant shared folder
     while true; do
+
         rm -rf  "${folderPath}"
-        if [ "$?" == "${True}" ]; then
+        if [ "$?" == 0 ]; then
             return
         fi
+
         retryCount="$(( ${retryCount} - 1 ))"
         if [ "${retryCount}" == "0" ]; then
             Error  "Cannot delete a folder \"${folderPath}\""
         fi
         sleep 2s
     done
+}
+
+function  RsyncToTemporary() {
+    local  folderPath="$1"
+    local  temporaryPath="$2"
+    test  "${folderPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. folderPath: \"${folderPath}\""
+    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. temporaryPath: \"${temporaryPath}\""
+    mkdir -p  "${temporaryPath}${folderPath}"
+
+    rsync --recursive --delete --times  "${folderPath}/"  "${temporaryPath}${folderPath}/"  ||  Error
+}
+
+function  RsyncFromTemporary() {
+    local  folderPathInTemporary="$1"
+    local  temporaryPath="$2"
+    test  "${folderPathInTemporary:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. folderPathInTemporary: \"${folderPathInTemporary}\""
+    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. temporaryPath: \"${temporaryPath}\""
+    StartsWith  "${folderPathInTemporary}/"  "${temporaryPath}/"  ||  Error
+    local  folderPath="${folderPathInTemporary:${#temporaryPath}}"
+    mkdir -p  "${folderPath}"
+    local  readOnlyFiles="$( find "${folderPath}" -type f ! -perm -u=w )"
+    echo  "${readOnlyFiles}"  |  xargs -I{} chmod 777 "{}"  #// For rsync can overwrite files in Windows share folder
+
+    rsync --recursive --delete --times --inplace  "${folderPathInTemporary}/"  "${folderPath}/"  ||  Error
+        #// It is necessary to set "--inplace" for Windows share folder. "--inplace" does not rename in rsync.
+    echo  "${readOnlyFiles}"  |  xargs -I{}  sh -c 'test -e "{}"  &&  chmod 444 "{}"'
+        #// For not changed read only files in Windows share folder
+    return 0
+}
+
+function  IsWindowsFile() {  #// Shared file with Windows in Linux process
+    local  filePath="$1"
+    if [ -d "${filePath}" ]; then Error ;fi
+    if df -h "${filePath}"  |  grep -E '/dev/' > /dev/null; then  #// Linux file system
+        return "${False}"  #// Linux file
+    else
+        return "${True}"  #// Windows file
+    fi
+}
+
+function  IsWindowsFolder() {
+    local  folderPath="$1"
+    echo  "x"  >  "${folderPath}/.commit_tmp"
+    IsWindowsFile  "${folderPath}/.commit_tmp"
+    local  returnValue=$?
+    rm  "${folderPath}/.commit_tmp"
+    return  "${returnValue}"
+}
+
+function  SetReadOnly() {
+    SetReadOnlyOrNot --set-read-only  "$@"
+}
+
+function  SetNotReadOnly() {
+    SetReadOnlyOrNot --set-not-read-only  "$@"
+}
+
+if [ "${READ_ONLY_CHMOD}" == "" ]; then
+    READ_ONLY_CHMOD="a-w"   #// For Linux only
+fi
+if [ "${NOT_READ_ONLY_CHMOD}" == "" ]; then
+    NOT_READ_ONLY_CHMOD="u+w"   #// For Linux only
+fi
+
+function  SetReadOnlyOrNot() {
+    local  operation="$1"
+    local  fileOrFolderPath="$2"
+
+    if [ -f "${fileOrFolderPath}" ]; then
+        local  filePath="${fileOrFolderPath}"
+        if [ "${operation}" == "--set-read-only" ]; then
+            if IsWindowsFile "${filePath}"; then
+
+                chmod 444  "${filePath}"
+            else
+                chmod ${READ_ONLY_CHMOD}  "${filePath}"
+            fi
+        elif [ "${operation}" == "--set-not-read-only" ]; then
+            if IsWindowsFile "${filePath}"; then
+
+                chmod 777  "${filePath}"
+            else
+                chmod ${NOT_READ_ONLY_CHMOD}  "${filePath}"
+            fi
+        fi
+
+    elif [ -d "${fileOrFolderPath}" ]; then
+        local  folderPath="${fileOrFolderPath}"
+        local  filePaths="$( find "${folderPath}"  -type f )"
+        local  firstFilePath="$( echo  "${filePaths}"  |  head -1 )"
+        if [ "${firstFilePath}" != "" ]; then
+            if [ "${operation}" == "--set-read-only" ]; then
+                if IsWindowsFile "${firstFilePath}"; then
+                    echo  "${filePaths}"  |  xargs -I{} chmod 444 "{}"
+                else
+                    echo  "${filePaths}"  |  xargs -I{} chmod ${READ_ONLY_CHMOD} "{}"
+                fi
+            elif [ "${operation}" == "--set-not-read-only" ]; then
+                if IsWindowsFile "${firstFilePath}"; then
+
+                    echo  "${filePaths}"  |  xargs -I{} chmod 777 "{}"
+                else
+                    echo  "${filePaths}"  |  xargs -I{} chmod ${NOT_READ_ONLY_CHMOD} "{}"
+                fi
+            fi
+        fi
+    fi
 }
 
 function  CutCommonPartLines() {

@@ -5,7 +5,8 @@
 `locommit` コマンドは、
 Git の ワーキング ディレクトリ（.git フォルダーがあるフォルダー）の外でも
 Git の ワーキング ディレクトリ のサブフォルダーでも使える
-`git status` や `git diff` に相当するコマンドです。
+`git status` や `git diff` や `git pull` や `git push` に相当するコマンドです。
+Linux 版 `locommit` コマンドは、Windows にあるフォルダーと共有するフォルダー（例: /vagrant）でも使えます。
 
 ```mermaid
 graph LR;

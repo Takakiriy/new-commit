@@ -15,7 +15,10 @@
             "request": "launch",
             "program": "${workspaceFolder}/bin/locommit",
             "cwd": "${workspaceFolder}/test",  // Edit it
-            "args": ["clone", "_testing/repository", "_testing/a/work"],  // Edit it
+            "args": ["clone","_testing/repository","_testing/a/work"],  // Edit it
+            "env": {
+                "LOCOMMIT_TMP": "/tmp/locommit"
+            }
         },
         {
             "name": "_locommit-set-up.sh",

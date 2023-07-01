@@ -4,10 +4,11 @@
 
 ## Overview
 
-The `locommit` command is the equivalent of `git status` and `git diff`
+The `locommit` command is the equivalent of `git status`, `git diff`, `git pull` and `git push`
 that can be used outside the Git working directory
 (the folder containing the .git folder)
 or in subfolders of the Git working directory.
+Linux version `locommit` command can be used in shared folders with Windows (e.g. /vagrant).
 
 ```mermaid
 graph LR;
