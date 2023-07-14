@@ -72,14 +72,17 @@ function  LocalCommit() {
         outputFolderName=".commit_new"
     fi
     local  workingFolderPath="${PWD}"
+    local  rsyncUsed="${False}"
     if IsWindowsFolder  "${workingFolderPath}"; then
-        RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
-        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
-        workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
-        pushd  "${workingFolderPath}" > /dev/null  ||  Error
-        local  rsyncUsed="${True}"
-    else
-        local  rsyncUsed="${False}"
+        if [ "${LOCOMMIT_TMP}" != "" ]; then
+            RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
+            workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
+            pushd  "${workingFolderPath}" > /dev/null  ||  Error
+            rsyncUsed="${True}"
+        else
+            echo  "LOCOMMIT_TMP environment variable is not set though \"${workingFolderPath}\" is Windows shared folder."
+        fi
     fi
 
     #// Copy files by "git checkout-index"
@@ -220,21 +223,27 @@ function  Clone() {
     mkdir -p  "${destinationFolderPath}"
     destinationFolderPath="$( readlink -f "${destinationFolderPath}" )"
     repositoryFolderPath="$( readlink -f "${repositoryFolderPath}" )"
+    local  rsyncRepositoryUsed="${False}"
     if IsWindowsFolder  "${repositoryFolderPath}"; then
-        RsyncToTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
-        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${repositoryFolderPath}\" is Windows shared folder."
-        repositoryFolderPath="${LOCOMMIT_TMP}${repositoryFolderPath}"
-        local  rsyncRepositoryUsed="${True}"
-    else
-        local  rsyncRepositoryUsed="${False}"
+        if [ "${LOCOMMIT_TMP}" != "" ]; then
+            RsyncToTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
+            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${repositoryFolderPath}\" is Windows shared folder."
+            repositoryFolderPath="${LOCOMMIT_TMP}${repositoryFolderPath}"
+            rsyncRepositoryUsed="${True}"
+        else
+            echo  "LOCOMMIT_TMP environment variable is not set though \"${repositoryFolderPath}\" is Windows shared folder."
+        fi
     fi
+    local  rsyncDestinationUsed="${False}"
     if IsWindowsFolder  "${destinationFolderPath}"; then
-        RsyncToTemporary  "${destinationFolderPath}"  "${LOCOMMIT_TMP}"
-        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${destinationFolderPath}\" is Windows shared folder."
-        destinationFolderPath="${LOCOMMIT_TMP}${destinationFolderPath}"
-        local  rsyncDestinationUsed="${True}"
-    else
-        local  rsyncDestinationUsed="${False}"
+        if [ "${LOCOMMIT_TMP}" != "" ]; then
+            RsyncToTemporary  "${destinationFolderPath}"  "${LOCOMMIT_TMP}"
+            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${destinationFolderPath}\" is Windows shared folder."
+            destinationFolderPath="${LOCOMMIT_TMP}${destinationFolderPath}"
+            rsyncDestinationUsed="${True}"
+        else
+            echo  "LOCOMMIT_TMP environment variable is not set though \"${destinationFolderPath}\" is Windows shared folder."
+        fi
     fi
 
     pushd  "${repositoryFolderPath}"  > /dev/null
@@ -439,14 +448,17 @@ function  PushFolder() {
     DeleteFolder ".commit_old_base"
 
     local  workingFolderPath="${PWD}"
+    local  rsyncUsed="${False}"
     if IsWindowsFolder  "${workingFolderPath}"; then
-        RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
-        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
-        workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
-        pushd  "${workingFolderPath}" > /dev/null  ||  Error
-        local  rsyncUsed="${True}"
-    else
-        local  rsyncUsed="${False}"
+        if [ "${LOCOMMIT_TMP}" != "" ]; then
+            RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
+            workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
+            pushd  "${workingFolderPath}" > /dev/null  ||  Error
+            local  rsyncUsed="${True}"
+        else
+            echo  "LOCOMMIT_TMP environment variable is not set though \"${workingFolderPath}\" is Windows shared folder."
+        fi
     fi
 
     #// (.commit_new case) Update .commit folder
@@ -534,19 +546,26 @@ function  PullSub() {
         source=".commit"
     fi
     local  workingFolderPath="${PWD}"
+    local  rsyncWorkingUsed="${False}"
     if IsWindowsFolder  "${workingFolderPath}"; then
-        RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
-        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
-        workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
-        pushd  "${workingFolderPath}" > /dev/null  ||  Error
-        local  rsyncWorkingUsed="${True}"
-    else
-        local  rsyncWorkingUsed="${False}"
+        if [ "${LOCOMMIT_TMP}" != "" ]; then
+            RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
+            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
+            workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
+            pushd  "${workingFolderPath}" > /dev/null  ||  Error
+            local  rsyncWorkingUsed="${True}"
+        else
+            echo  "LOCOMMIT_TMP environment variable is not set though \"${workingFolderPath}\" is Windows shared folder."
+        fi
     fi
     if IsWindowsFolder  "${repositoryFolderPath}"; then
-        RsyncToTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
-        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${repositoryFolderPath}\" is Windows shared folder."
-        repositoryFolderPath="${LOCOMMIT_TMP}${repositoryFolderPath}"
+        if [ "${LOCOMMIT_TMP}" != "" ]; then
+            RsyncToTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
+            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${repositoryFolderPath}\" is Windows shared folder."
+            repositoryFolderPath="${LOCOMMIT_TMP}${repositoryFolderPath}"
+        else
+            echo  "LOCOMMIT_TMP environment variable is not set though \"${repositoryFolderPath}\" is Windows shared folder."
+        fi
     fi
 
     #// Create ".commit_new" folder
@@ -866,13 +885,16 @@ function  PullFile() {
     DeleteFolder    ".commit_merging"
     mkdir -p  ".commit_merging"
     local  mergingFolderPath="$( readlink -f ".commit_merging" )"
+    local  rsyncUsed="${False}"
     if IsWindowsFolder  "${mergingFolderPath}"; then
-        RsyncToTemporary  "${mergingFolderPath}"  "${LOCOMMIT_TMP}"
-        echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${mergingFolderPath}\" is Windows shared folder."
-        mergingFolderPath="${LOCOMMIT_TMP}${mergingFolderPath}"
-        local  rsyncUsed="${True}"
-    else
-        local  rsyncUsed="${False}"
+        if [ "${LOCOMMIT_TMP}" != "" ]; then
+            RsyncToTemporary  "${mergingFolderPath}"  "${LOCOMMIT_TMP}"
+            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${mergingFolderPath}\" is Windows shared folder."
+            mergingFolderPath="${LOCOMMIT_TMP}${mergingFolderPath}"
+            local  rsyncUsed="${True}"
+        else
+            echo  "LOCOMMIT_TMP environment variable is not set though \"${mergingFolderPath}\" is Windows shared folder."
+        fi
     fi
     local  currentFolder="${PWD}"
     pushd  "${mergingFolderPath}" > /dev/null  ||  Error

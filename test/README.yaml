@@ -1,61 +1,66 @@
 Test:
-    OS: Windows, macOS, WSL Ubuntu 20.04
-    With ".git":
-        WSL:
-            wsl
-            cd  ${HOME}
-            git clone https://github.com/Takakiriy/locommit  -b develop
-            cd __Project__/test
-            ./test-locommit
+    OS:
         Windows:
-            bash:
-                VSCode >> Terminal >> Git bash
+        macOS:
+        WSL Ubuntu 20.04:
+        CentOS7 Vagrant:
+    Position:
+        With ".git":
+            WSL:
+                wsl
+                cd  ${HOME}
+                git clone https://github.com/Takakiriy/locommit  -b develop
                 cd __Project__/test
                 ./test-locommit
-            PowerShell: |
-                VSCode >> Terminal >> PowerShell
+            Windows:
+                bash:
+                    VSCode >> Terminal >> Git bash
+                    cd __Project__/test
+                    ./test-locommit
+                PowerShell: |
+                    VSCode >> Terminal >> PowerShell
+                    cd __Project__/test
+                    & "C:\Program Files\Git\bin\bash" test-locommit
+            mac:
+                VSCode >> Terminal
                 cd __Project__/test
-                & "C:\Program Files\Git\bin\bash" test-locommit
-        mac:
-            VSCode >> Terminal
-            cd __Project__/test
-            ./test-locommit
-    With "../.git":
-        # set up
-            -   cd  ${HOME}
-                mkdir -p  ~/bin/.vscode
-            -   cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
-                cp  ~/locommit/test/README.yaml          ~/bin/README.yaml
-                cp  ~/locommit/.vscode/launch.json       ~/bin/.vscode/launch.json
-            -   code  ~/bin
-            -   (Close VSCode opening locommit)
-            -   ~/bin/_locommit-set-up.sh  --transform-to-parent-git
-        # test
-            -   code  ~/_testing/locommit
-            -   (Close VSCode opening bin)
-            -   cd test
-            -   ./test-locommit
-        # clean
-            -   code  ~/bin
-            -   (Close VSCode opening locommit)
-            -   ~/bin/_locommit-set-up.sh  --transform-from-parent-git
-            -   cp  ~/bin/_locommit-set-up.sh  ~/locommit/test/_locommit-set-up.sh
-                cp  ~/bin/README.yaml          ~/locommit/test/README.yaml
-                cp  ~/bin/.vscode/launch.json  ~/locommit/.vscode/launch.json
-            -   code  ~/locommit
-            -   (Close VSCode opening bin)
-        # commit
-            -   git add "."
-            -   git commit -m "____"
-            -   git push
-    Without ".git":
-        # set up in WSL
-            - code  ~/locommit
-            - cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
-            - ~/bin/_locommit-set-up.sh  --transform-to-without-git
-        # test
-            - cd test
-            - ./test-locommit
-        # clean
-            - ~/bin/_locommit-set-up.sh  --transform-from-without-git
-            - rm  ~/bin/_locommit-set-up.sh
+                ./test-locommit
+        With "../.git":
+            # set up
+                -   cd  ${HOME}
+                    mkdir -p  ~/bin/.vscode
+                -   cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
+                    cp  ~/locommit/test/README.yaml          ~/bin/README.yaml
+                    cp  ~/locommit/.vscode/launch.json       ~/bin/.vscode/launch.json
+                -   code  ~/bin
+                -   (Close VSCode opening locommit)
+                -   ~/bin/_locommit-set-up.sh  --transform-to-parent-git
+            # test
+                -   code  ~/_testing/locommit
+                -   (Close VSCode opening bin)
+                -   cd test
+                -   ./test-locommit
+            # clean
+                -   code  ~/bin
+                -   (Close VSCode opening locommit)
+                -   ~/bin/_locommit-set-up.sh  --transform-from-parent-git
+                -   cp  ~/bin/_locommit-set-up.sh  ~/locommit/test/_locommit-set-up.sh
+                    cp  ~/bin/README.yaml          ~/locommit/test/README.yaml
+                    cp  ~/bin/.vscode/launch.json  ~/locommit/.vscode/launch.json
+                -   code  ~/locommit
+                -   (Close VSCode opening bin)
+            # commit
+                -   git add "."
+                -   git commit -m "____"
+                -   git push
+        Without ".git":
+            # set up in WSL
+                - code  ~/locommit
+                - cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
+                - ~/bin/_locommit-set-up.sh  --transform-to-without-git
+            # test
+                - cd test
+                - ./test-locommit
+            # clean
+                - ~/bin/_locommit-set-up.sh  --transform-from-without-git
+                - rm  ~/bin/_locommit-set-up.sh
