@@ -1456,6 +1456,14 @@ function  Test_Clone_Pull_Push_Zip() {
     AssertExist     "_testing/work/example2.txt"
     AssertNotExist  "_testing/work/.commit"
     AssertExist     "_testing/work/.commit.zip"
+    pushd "_testing/work" > /dev/null
+    unzip  ".commit.zip"  > /dev/null
+    popd > /dev/null
+    AssertContents     "_testing/work/.commit/example1.txt"  "x"
+    AssertContents     "_testing/work/.commit/example2.txt"  "y"
+    AssertNotReadOnly  "_testing/work/.commit/example1.txt"
+    AssertNotReadOnly  "_testing/work/.commit/example2.txt"
+    rm -f  "_testing/work/.commit"
 
     #// Set up
     echo "x updated" > "_testing/repository/example1.txt"
@@ -1501,8 +1509,10 @@ function  Test_Clone_Pull_Push_Zip() {
     pushd "_testing/work" > /dev/null
     unzip  ".commit.zip"
     popd > /dev/null
-    AssertContents  "_testing/work/.commit/example1.txt"  "x updated"
-    AssertContents  "_testing/work/.commit/example2.txt"  "y updated"
+    AssertContents     "_testing/work/.commit/example1.txt"  "x updated"
+    AssertContents     "_testing/work/.commit/example2.txt"  "y updated"
+    AssertNotReadOnly  "_testing/work/.commit/example1.txt"
+    AssertNotReadOnly  "_testing/work/.commit/example2.txt"
     DeleteFolder  "_testing"
 }
 

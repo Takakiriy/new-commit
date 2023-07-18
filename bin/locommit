@@ -283,6 +283,7 @@ function  Clone() {
         echo  'Created new ".commit" folder.'
     else
         pushd "${destinationFolderPath}" > /dev/null
+        SetNotReadOnly  ".commit"
         zip -r  ".commit.zip"  ".commit"  >  /dev/null  ||  Error
         DeleteFolder  ".commit"
         popd > /dev/null
@@ -464,9 +465,9 @@ function  PushFolder() {
     #// (.commit_new case) Update .commit folder
     if [ "${source}" == ".commit_new" ]; then
         if [ ! -e ".commit.zip" ]; then
-            echo  "Moved \".commit_new\" to \".commit\" folder"
+            echo  'Moved ".commit_new" to ".commit" folder'
         else
-            echo  "Compress and moved \".commit_new\" to \".commit.zip\" file"
+            echo  'Compress and moved ".commit_new" to ".commit.zip" file'
         fi
         DeleteFolder  ".commit"
 
@@ -475,6 +476,7 @@ function  PushFolder() {
             if IsWindowsFolder  "${workingFolderPath}"; then
                 sleep 1s
             fi
+            SetNotReadOnly  ".commit"
             zip -r  ".commit.zip"  ".commit"  >  /dev/null  ||  Error
             DeleteFolder  ".commit"
         fi
