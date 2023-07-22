@@ -1495,7 +1495,7 @@ function  Test_Clone_Pull_Push_Zip() {
     popd > /dev/null
 
     #// Main: push
-    mkdir  "_testing/work/.commit"  #// This is not an error reason of push command
+    AssertNotExist  "_testing/work/.commit"
     pushd "_testing/work" > /dev/null
     echo  "$ locommit push  ../repository"
 
@@ -1513,6 +1513,12 @@ function  Test_Clone_Pull_Push_Zip() {
     AssertContents     "_testing/work/.commit/example2.txt"  "y updated"
     AssertNotReadOnly  "_testing/work/.commit/example1.txt"
     AssertNotReadOnly  "_testing/work/.commit/example2.txt"
+    rm -rf  "_testing/work/.commit"
+
+    #// Main: 2nd push, no update
+    pushd "_testing/work" > /dev/null
+    "../../${LocommitCommand}" push  "../repository"  ||  Error
+    popd > /dev/null
     DeleteFolder  "_testing"
 }
 

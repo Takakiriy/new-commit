@@ -400,13 +400,17 @@ function  PushFolder() {
 
     #// (.commit case) Check no update
     if [ "${source}" == ".commit" ]; then
+        if [ -e ".commit.zip" ]; then
+            DeleteFolder  ".commit"
+        fi
+
         LocalCommit > /dev/null
         if [ -e ".commit_new" ]; then
             DeleteFolder  ".commit_new"
-            if [ -e ".commit.zip" ]; then
-                DeleteFolder  ".commit"
-            fi
             Error  "push command requires .commit_new folder, if update file exists. Run locommit command."
+        fi
+        if [ -e ".commit.zip" ]; then
+            unzip  ".commit.zip"  >  /dev/null
         fi
     fi
 
