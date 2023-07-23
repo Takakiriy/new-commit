@@ -1568,6 +1568,13 @@ function  Test_PullBase_NoInput() {  #// Base tests are "Test_PullBase_1" and "T
     DeleteFolder  "_testing"
 }
 
+function  GitInit() {
+    git init ${GitInitOption}  > /dev/null  2>&1  ||  Error
+    git config --local user.email "${LocommitEMail}"
+    git config --local user.name  "${LocommitUser}"
+    git config --local core.fileMode  false
+}
+
 function  Test_PullBase_Conflict() {  #// Base tests are "Test_PullBase_1" and "Test_Pull_Conflict"
     echo  ""
     echo  "### Test_PullBase_Conflict --------------------------------"
@@ -1874,7 +1881,8 @@ function  Test_ResolvePath() {
 function  ResolvePath() {
     local  path_="$1"
 
-    path_="$( echo "${path_}" | sed -e 's/\\/\//g' | sed -e 's/^C:/c:/' )"  #// replace to / and c:
+    path_="$( echo "${path_}" | sed -e 's/\\/\//g' | sed -e 's/^C:/c:/'  || echo "(ERROR)" )"  #// replace to / and c:
+    ErrorIfLastIs  "${path_}"  "(ERROR)"
 
     if [ "${mnt_c}" == "" ]; then
         export  mnt_c="/mnt/c";  if [ ! -e "/mnt/c" ]; then  export  mnt_c="c:"  ;fi
@@ -1896,7 +1904,7 @@ function  GetGitWorkingRootPath() {
             echo  "${path}"
             return
         fi
-        path="${path%/*}" 
+        path="${path%/*}"
     done
 
     echo  ""
@@ -2018,58 +2026,6 @@ function  DeleteFolder() {
     done
 }
 
-function  GetBooleanString() {
-    if [ "$1" == "${True}" ]; then
-        echo  "True"
-    elif [ "$1" == "${False}" ]; then
-        echo  "False"
-    else
-        echo  "$1"
-    fi
-}
-
-#// StartsWith
-#//     e.g.) if StartsWith  ${wholeString} ${partString}; then
-function  StartsWith() {
-    local  wholeString="$1"
-    local  partString="$2"
-    local  partLength=${#partString}
-
-    #// Set exit code
-    [ "${wholeString:0:${partLength}}" == "${partString}" ]
-}
-
-function  Test_CutLastOf() {
-    echo  ""
-    echo  "### Test_CutLastOf --------------------------------"
-
-    local  result="$(CutLastOf "aba" "a")"
-    if [ "${result}" != "ab" ]; then
-        TestError  "CutLastOf (1)"
-    fi
-
-    local  result="$(CutLastOf "aba" "x")"
-    if [ "${result}" != "aba" ]; then
-        TestError  "CutLastOf (2)"
-    fi
-
-    local  result="$(CutLastOf "abc" "bc")"
-    if [ "${result}" != "a" ]; then
-        TestError  "CutLastOf (3)"
-    fi
-}
-
-function  CutLastOf() {
-    local  wholeString="$1"
-    local  lastExpected="$2"
-
-    if [ "${wholeString:${#wholeString}-${#lastExpected}:${#lastExpected}}" == "${lastExpected}" ]; then
-        echo  "${wholeString:0:${#wholeString}-${#lastExpected}}"
-    else
-        echo  "${wholeString}"
-    fi
-}
-
 function  gitInitOption() {
     if [ "$( LessThanVersion "$(git --version)" "2.31.1")" == "${True}" ]; then
         echo  ""
@@ -2140,6 +2096,252 @@ function  LessThanVersion() {
         fi
     fi
     echo "${False}"
+}
+
+function  StartInTemporary() {
+    local  temporaryPathVariableName="$1"
+    local  temporaryPathValue="$2"
+    local  currentFolder="${PWD}"
+
+    if IsWindowsFolder  "${currentFolder}"; then
+        if [ "${temporaryPathValue}" != "" ]; then
+            echo  "Using ${temporaryPathVariableName} (${temporaryPathValue}) because \"${currentFolder}\" is Windows shared folder."
+
+            RsyncToTemporary  "${currentFolder}"  "${temporaryPathValue}"
+
+            pushd  "${temporaryPathValue}${currentFolder}" > /dev/null  ||  Error
+        else
+            echo  "${temporaryPathVariableName} environment variable is not set though \"${currentFolder}\" is Windows shared folder."
+        fi
+    fi
+}
+
+function  EndInTemporary() {
+    local  temporaryPathVariableName="$1"
+    local  temporaryPathValue="$2"
+    local  currentFolder="${PWD}"
+    if [ "${temporaryPathValue}" == "" ]; then
+        return
+    fi
+
+    if StartsWith  "${currentFolder}/"  "${temporaryPathValue}/"; then
+
+        RsyncFromTemporary  "${currentFolder}"  "${temporaryPathValue}"
+
+        popd  > /dev/null
+    fi
+}
+
+function  RsyncToTemporary() {
+    local  folderPath="$1"
+    local  temporaryPath="$2"
+    local  waitTime="$3"  #// "", 0 or 1s.  ""=1s
+    if [ "${waitTime}" == "" ]; then
+        waitTime="1s"
+    fi
+    test  "${folderPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. folderPath: \"${folderPath}\""
+    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. temporaryPath: \"${temporaryPath}\""
+    mkdir -p  "${temporaryPath}${folderPath}"
+
+    rsync --recursive --delete --times  "${folderPath}/"  "${temporaryPath}${folderPath}/"  ||  Error
+        #// It is necessary to set "--times" for Windows share folder
+    sleep  "${waitTime}"
+    return 0
+}
+
+function  RsyncFromTemporary() {
+    #// Command "RsyncFromTemporary /tmp/folder/to /tmp" copies to /folder/to
+    local  folderPathInTemporary="$1"
+    local  temporaryPath="$2"
+    local  waitTime="$3"  #// "", 0 or 1s.  ""=1s
+    if [ "${waitTime}" == "" ]; then
+        waitTime="1s"
+    fi
+    test  "${folderPathInTemporary:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. folderPathInTemporary: \"${folderPathInTemporary}\""
+    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. temporaryPath: \"${temporaryPath}\""
+    StartsWith  "${folderPathInTemporary}/"  "${temporaryPath}/"  ||  Error
+
+    local  destinationFolderPath="${folderPathInTemporary:${#temporaryPath}}"
+    mkdir -p  "${destinationFolderPath}"
+    local  readOnlyFiles="$( find "${destinationFolderPath}" -type f ! -perm -u=w )"
+    echo  "${readOnlyFiles}"  |  xargs -I{} chmod 777 "{}"  #// For rsync can overwrite files in Windows share folder
+
+    rsync --recursive --delete --times --inplace  "${folderPathInTemporary}/"  "${destinationFolderPath}/"  ||  Error
+        #// It is necessary to set "--inplace" for Windows share folder. "--inplace" does not rename in rsync.
+    echo  "${readOnlyFiles}"  |  xargs -I{}  sh -c 'test -e "{}"  &&  chmod 444 "{}"'
+        #// For not changed read only files in Windows share folder
+    sleep  "${waitTime}"
+    return 0
+}
+
+function  IsWindowsFile() {  #// Shared file with Windows in Linux process
+    local  filePath="$1"
+    if [ -d "${filePath}" ]; then Error ;fi
+
+    if df -h "${filePath}"  |  grep -E '/dev/' > /dev/null; then  #// Linux file system
+        return "${False}"  #// Linux file
+    else
+        return "${True}"  #// Windows file
+    fi
+}
+
+function  IsWindowsFile_Bad() {  #// Shared file with Windows in Linux process
+    local  filePath="$1"
+    if [ -d "${filePath}" ]; then Error ;fi
+    local  oldChmod="$( stat --format '%a' "${filePath}" )"
+
+    chmod 444  "${filePath}"
+sleep 1s
+    local  newChmod="$( stat --format '%a' "${filePath}" )"
+    chmod "${oldChmod}"  "${filePath}"
+echo "${newChmod}"  #// with sleep 1s: 555, without sleep 1s: 444 ... Bad
+
+    if [ "${newChmod}" == "555" ]; then
+        return "${True}"  #// Windows file
+    else
+        return "${False}"  #// Linux file
+    fi
+}
+
+function  IsWindowsFolder() {
+    local  folderPath="$1"
+    echo  "x"  >  "${folderPath}/.commit_tmp"
+
+    IsWindowsFile  "${folderPath}/.commit_tmp"
+    local  returnValue=$?
+    rm  "${folderPath}/.commit_tmp"
+    return  "${returnValue}"
+}
+
+function  SetReadOnly() {
+    SetReadOnlyOrNot --set-read-only  "$@"
+}
+
+function  SetNotReadOnly() {
+    SetReadOnlyOrNot --set-not-read-only  "$@"
+}
+
+if [ "${READ_ONLY_CHMOD}" == "" ]; then
+    READ_ONLY_CHMOD="a-w"   #// For Linux only
+fi
+if [ "${NOT_READ_ONLY_CHMOD}" == "" ]; then
+    NOT_READ_ONLY_CHMOD="u+w"   #// For Linux only
+fi
+
+function  SetReadOnlyOrNot() {
+    local  operation="$1"
+    local  fileOrFolderPath="$2"
+
+    if [ -f "${fileOrFolderPath}" ]; then
+        local  filePath="${fileOrFolderPath}"
+        if [ "${operation}" == "--set-read-only" ]; then
+            if IsWindowsFile "${filePath}"; then
+
+                chmod 444  "${filePath}"
+            else
+                chmod ${READ_ONLY_CHMOD}  "${filePath}"
+            fi
+        elif [ "${operation}" == "--set-not-read-only" ]; then
+            if IsWindowsFile "${filePath}"; then
+
+                chmod 777  "${filePath}"
+            else
+                chmod ${NOT_READ_ONLY_CHMOD}  "${filePath}"
+            fi
+        fi
+
+    elif [ -d "${fileOrFolderPath}" ]; then
+        local  folderPath="${fileOrFolderPath}"
+        local  filePaths="$( find "${folderPath}"  -type f )"
+        local  firstFilePath="$( echo  "${filePaths}"  |  head -1 )"
+        if [ "${firstFilePath}" != "" ]; then
+            if [ "${operation}" == "--set-read-only" ]; then
+                if IsWindowsFile "${firstFilePath}"; then
+                    echo  "${filePaths}"  |  xargs -I{} chmod 444 "{}"
+                else
+                    echo  "${filePaths}"  |  xargs -I{} chmod ${READ_ONLY_CHMOD} "{}"
+                fi
+            elif [ "${operation}" == "--set-not-read-only" ]; then
+                if IsWindowsFile "${firstFilePath}"; then
+
+                    echo  "${filePaths}"  |  xargs -I{} chmod 777 "{}"
+                else
+                    echo  "${filePaths}"  |  xargs -I{} chmod ${NOT_READ_ONLY_CHMOD} "{}"
+                fi
+            fi
+        fi
+    fi
+}
+
+
+
+function  GetBooleanString() {
+    if [ "$1" == "${True}" ]; then
+        echo  "True"
+    elif [ "$1" == "${False}" ]; then
+        echo  "False"
+    else
+        echo  "$1"
+    fi
+}
+
+#// StartsWith
+#//     e.g.) if StartsWith  ${wholeString} ${partString}; then
+function  StartsWith() {
+    local  wholeString="$1"
+    local  partString="$2"
+    local  partLength=${#partString}
+
+    #// Set exit code
+    [ "${wholeString:0:${partLength}}" == "${partString}" ]
+}
+
+function  Test_CutLastOf() {
+    echo  ""
+    echo  "### Test_CutLastOf --------------------------------"
+
+    local  result="$(CutLastOf "aba" "a")"
+    if [ "${result}" != "ab" ]; then
+        TestError  "CutLastOf (1)"
+    fi
+
+    local  result="$(CutLastOf "aba" "x")"
+    if [ "${result}" != "aba" ]; then
+        TestError  "CutLastOf (2)"
+    fi
+
+    local  result="$(CutLastOf "abc" "bc")"
+    if [ "${result}" != "a" ]; then
+        TestError  "CutLastOf (3)"
+    fi
+}
+
+function  CutLastOf() {
+    local  wholeString="$1"
+    local  lastExpected="$2"
+
+    if [ "${wholeString:${#wholeString}-${#lastExpected}:${#lastExpected}}" == "${lastExpected}" ]; then
+        echo  "${wholeString:0:${#wholeString}-${#lastExpected}}"
+    else
+        echo  "${wholeString}"
+    fi
+}
+
+function  Test_ErrorIfLastIs() {
+    echo  ""
+    echo  "### Test_ErrorIfLastIs --------------------------------"
+
+    local  output="$( Test_Sub1_ErrorIfLastIs )"
+    local  answer="$( echo -e 'OK\nstdout\n(ERROR)\n' )"
+    if [ "${output}" != "${answer}" ]; then
+        Error  "ERROR: in Test_ErrorIfLastIs 1"
+    fi
+
+    local  output="$( Test_Sub2_ErrorIfLastIs )"
+    local  answer="$( echo -e '(error_symbol) OK\nPass\n' )"
+    if [ "${output}" != "${answer}" ]; then
+        Error  "ERROR: in Test_ErrorIfLastIs 2"
+    fi
 }
 
 function  Test_Assert() {
@@ -2278,203 +2480,6 @@ function  AssertContents() {
     local  result="$(cat "${filePath}")"
     if [ "${result}" != "$( echo -e "${expectedContents}" )" ]; then
         Error  "ERROR: Not expected contents in ${filePath}: ${result}"
-    fi
-}
-
-function  GitInit() {
-    git init ${GitInitOption}  > /dev/null  2>&1  ||  Error
-    git config --local user.email "${LocommitEMail}"
-    git config --local user.name  "${LocommitUser}"
-    git config --local core.fileMode  false
-}
-
-function  StartInTemporary() {
-    local  temporaryPathVariableName="$1"
-    local  temporaryPathValue="$2"
-    local  currentFolder="${PWD}"
-
-    if IsWindowsFolder  "${currentFolder}"; then
-        if [ "${temporaryPathValue}" != "" ]; then
-            echo  "Using ${temporaryPathVariableName} (${temporaryPathValue}) because \"${currentFolder}\" is Windows shared folder."
-
-            RsyncToTemporary  "${currentFolder}"  "${temporaryPathValue}"
-
-            pushd  "${temporaryPathValue}${currentFolder}" > /dev/null  ||  Error
-        else
-            echo  "${temporaryPathVariableName} environment variable is not set though \"${currentFolder}\" is Windows shared folder."
-        fi
-    fi
-}
-
-function  EndInTemporary() {
-    local  temporaryPathVariableName="$1"
-    local  temporaryPathValue="$2"
-    local  currentFolder="${PWD}"
-    if [ "${temporaryPathValue}" == "" ]; then
-        return
-    fi
-
-    if StartsWith  "${currentFolder}/"  "${temporaryPathValue}/"; then
-
-        RsyncFromTemporary  "${currentFolder}"  "${temporaryPathValue}"
-
-        popd  > /dev/null
-    fi
-}
-
-function  RsyncToTemporary() {
-    local  folderPath="$1"
-    local  temporaryPath="$2"
-    local  waitTime="$3"  #// "", 0 or 1s.  ""=1s
-    if [ "${waitTime}" == "" ]; then
-        waitTime="1s"
-    fi
-    test  "${folderPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. folderPath: \"${folderPath}\""
-    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncToTemporary requests full path. temporaryPath: \"${temporaryPath}\""
-    mkdir -p  "${temporaryPath}${folderPath}"
-
-    rsync --recursive --delete --times  "${folderPath}/"  "${temporaryPath}${folderPath}/"  ||  Error
-        #// It is necessary to set "--times" for Windows share folder
-    sleep  "${waitTime}"
-    return 0
-}
-
-function  RsyncFromTemporary() {
-    #// Command "RsyncFromTemporary /tmp/folder/to /tmp" copies to /folder/to
-    local  folderPathInTemporary="$1"
-    local  temporaryPath="$2"
-    local  waitTime="$3"  #// "", 0 or 1s.  ""=1s
-    if [ "${waitTime}" == "" ]; then
-        waitTime="1s"
-    fi
-    test  "${folderPathInTemporary:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. folderPathInTemporary: \"${folderPathInTemporary}\""
-    test  "${temporaryPath:0:1}" == "/"  ||  Error  "ERROR: RsyncFromTemporary requests full path. temporaryPath: \"${temporaryPath}\""
-    StartsWith  "${folderPathInTemporary}/"  "${temporaryPath}/"  ||  Error
-
-    local  destinationFolderPath="${folderPathInTemporary:${#temporaryPath}}"
-    mkdir -p  "${destinationFolderPath}"
-    local  readOnlyFiles="$( find "${destinationFolderPath}" -type f ! -perm -u=w )"
-    echo  "${readOnlyFiles}"  |  xargs -I{} chmod 777 "{}"  #// For rsync can overwrite files in Windows share folder
-
-    rsync --recursive --delete --times --inplace  "${folderPathInTemporary}/"  "${destinationFolderPath}/"  ||  Error
-        #// It is necessary to set "--inplace" for Windows share folder. "--inplace" does not rename in rsync.
-    echo  "${readOnlyFiles}"  |  xargs -I{}  sh -c 'test -e "{}"  &&  chmod 444 "{}"'
-        #// For not changed read only files in Windows share folder
-    sleep  "${waitTime}"
-    return 0
-}
-
-function  IsWindowsFile() {  #// Shared file with Windows in Linux process
-    local  filePath="$1"
-    if [ -d "${filePath}" ]; then Error ;fi
-    if df -h "${filePath}"  |  grep -E '/dev/' > /dev/null; then  #// Linux file system
-        return "${False}"  #// Linux file
-    else
-        return "${True}"  #// Windows file
-    fi
-}
-
-function  IsWindowsFile_Bad() {  #// Shared file with Windows in Linux process
-    local  filePath="$1"
-    if [ -d "${filePath}" ]; then Error ;fi
-    local  oldChmod="$( stat --format '%a' "${filePath}" )"
-
-    chmod 444  "${filePath}"
-sleep 1s
-    local  newChmod="$( stat --format '%a' "${filePath}" )"
-    chmod "${oldChmod}"  "${filePath}"
-echo "${newChmod}"  #// with sleep 1s: 555, without sleep 1s: 444 ... Bad
-
-    if [ "${newChmod}" == "555" ]; then
-        return "${True}"  #// Windows file
-    else
-        return "${False}"  #// Linux file
-    fi
-}
-
-function  IsWindowsFolder() {
-    local  folderPath="$1"
-    echo  "x"  >  "${folderPath}/.commit_tmp"
-    IsWindowsFile  "${folderPath}/.commit_tmp"
-    local  returnValue=$?
-    rm  "${folderPath}/.commit_tmp"
-    return  "${returnValue}"
-}
-
-function  SetReadOnly() {
-    SetReadOnlyOrNot --set-read-only  "$@"
-}
-
-function  SetNotReadOnly() {
-    SetReadOnlyOrNot --set-not-read-only  "$@"
-}
-
-if [ "${READ_ONLY_CHMOD}" == "" ]; then
-    READ_ONLY_CHMOD="a-w"   #// For Linux only
-fi
-if [ "${NOT_READ_ONLY_CHMOD}" == "" ]; then
-    NOT_READ_ONLY_CHMOD="u+w"   #// For Linux only
-fi
-
-function  SetReadOnlyOrNot() {
-    local  operation="$1"
-    local  fileOrFolderPath="$2"
-
-    if [ -f "${fileOrFolderPath}" ]; then
-        local  filePath="${fileOrFolderPath}"
-        if [ "${operation}" == "--set-read-only" ]; then
-            if IsWindowsFile "${filePath}"; then
-
-                chmod 444  "${filePath}"
-            else
-                chmod ${READ_ONLY_CHMOD}  "${filePath}"
-            fi
-        elif [ "${operation}" == "--set-not-read-only" ]; then
-            if IsWindowsFile "${filePath}"; then
-
-                chmod 777  "${filePath}"
-            else
-                chmod ${NOT_READ_ONLY_CHMOD}  "${filePath}"
-            fi
-        fi
-
-    elif [ -d "${fileOrFolderPath}" ]; then
-        local  folderPath="${fileOrFolderPath}"
-        local  filePaths="$( find "${folderPath}"  -type f )"
-        local  firstFilePath="$( echo  "${filePaths}"  |  head -1 )"
-        if [ "${firstFilePath}" != "" ]; then
-            if [ "${operation}" == "--set-read-only" ]; then
-                if IsWindowsFile "${firstFilePath}"; then
-                    echo  "${filePaths}"  |  xargs -I{} chmod 444 "{}"
-                else
-                    echo  "${filePaths}"  |  xargs -I{} chmod ${READ_ONLY_CHMOD} "{}"
-                fi
-            elif [ "${operation}" == "--set-not-read-only" ]; then
-                if IsWindowsFile "${firstFilePath}"; then
-
-                    echo  "${filePaths}"  |  xargs -I{} chmod 777 "{}"
-                else
-                    echo  "${filePaths}"  |  xargs -I{} chmod ${NOT_READ_ONLY_CHMOD} "{}"
-                fi
-            fi
-        fi
-    fi
-}
-
-function  Test_ErrorIfLastIs() {
-    echo  ""
-    echo  "### Test_ErrorIfLastIs --------------------------------"
-
-    local  output="$( Test_Sub1_ErrorIfLastIs )"
-    local  answer="$( echo -e 'OK\nstdout\n(ERROR)\n' )"
-    if [ "${output}" != "${answer}" ]; then
-        Error  "ERROR: in Test_ErrorIfLastIs 1"
-    fi
-
-    local  output="$( Test_Sub2_ErrorIfLastIs )"
-    local  answer="$( echo -e '(error_symbol) OK\nPass\n' )"
-    if [ "${output}" != "${answer}" ]; then
-        Error  "ERROR: in Test_ErrorIfLastIs 2"
     fi
 }
 
@@ -2676,11 +2681,14 @@ function  DetectTestEnvironment() {
     fi
 }
 
-#// pp "$config"
-#// pp "$config" config
-#// pp "$array" array  ${#array[@]}  "${array[@]}"
-#// pp "123"
-#// $( pp "$config" >&2 )
+# pp
+#     Debug print
+# Example:
+#     pp "$config"
+#     pp "$config" config
+#     pp "$array" array  ${#array[@]}  "${array[@]}"
+#     pp "123"
+#     $( pp "$config" >&2 )
 function  pp() {
     local  value="$1"
     local  variableName="$2"
@@ -2716,7 +2724,7 @@ function  pp() {
             echo  "[0]: \"$4\""  >&2
             echo  "[1]: ERROR: pp parameter is too few"  >&2
         else
-            local  i="0"
+            local  i=""
             for (( i = 0; i < ${count}; i += 1 ));do
                 echo  "[$i]: \"$4\""  >&2
                 shift
@@ -2729,7 +2737,7 @@ function  pp() {
 
 True=0
 False=1
-GitInitOption=$(gitInitOption) 
+GitInitOption=$(gitInitOption)
 TestEnvironmentNum=0
 InGitWorking=""
 IsGitWorking=""
