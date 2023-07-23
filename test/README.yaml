@@ -5,7 +5,7 @@ Test:
         WSL Ubuntu 20.04:
         CentOS7 Vagrant:
     Position:
-        With ".git":
+        With ".git":  #// WSL, Windows, macOS
             WSL:
                 wsl
                 cd  ${HOME}
@@ -25,7 +25,7 @@ Test:
                 VSCode >> Terminal
                 cd __Project__/test
                 ./test-locommit
-        With "../.git":
+        With "../.git":  #// WSL, Windows, macOS
             # set up
                 -   cd  ${HOME}
                     mkdir -p  ~/bin/.vscode
@@ -53,7 +53,7 @@ Test:
                 -   git add "."
                 -   git commit -m "____"
                 -   git push
-        Without ".git":
+        Without ".git":  #// WSL, Windows, macOS
             # set up in WSL
                 - code  ~/locommit
                 - cp  ~/locommit/test/_locommit-set-up.sh  ~/bin/_locommit-set-up.sh
@@ -64,3 +64,28 @@ Test:
             # clean
                 - ~/bin/_locommit-set-up.sh  --transform-from-without-git
                 - rm  ~/bin/_locommit-set-up.sh
+        CentOS7 Vagrant Windows shared folder:
+            Special behavior in this environment: |  #focus: cannot remove
+                echo a >   a.txt
+                chmod 444  a.txt
+                rm         a.txt
+                    rm: remove write-protected regular file ‘a.txt’? y
+                    rm: cannot remove ‘a.txt’: Operation not permitted
+                chmod 777  a.txt
+                rm         a.txt
+            Set up CentOS7 Vagrant:
+                #ref: https://github.com/Takakiriy/ansible_vagrant/tree/single_vm_ansible_centos7
+            bash in VM:
+                sudo yum install -y  zip  unzip
+                cd  ${HOME}
+                git clone https://github.com/Takakiriy/locommit  -b develop
+                mv  locommit  /vagrant
+            Run tests:
+                code  /vagrant/locommit
+                cd  test
+                ./test-locommit 
+            feedback:
+                cd  ${HOME}
+                find /vagrant/locommit -type f  | xargs chmod 777
+                mv  /vagrant/locommit  ${HOME}
+                git add, commit, ....
