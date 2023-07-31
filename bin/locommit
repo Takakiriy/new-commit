@@ -71,19 +71,7 @@ function  LocalCommit() {
     else
         outputFolderName=".commit_new"
     fi
-    local  workingFolderPath="${PWD}"
-    local  rsyncUsed="${False}"
-    if IsWindowsFolder  "${workingFolderPath}"; then
-        if [ "${LOCOMMIT_TMP}" != "" ]; then
-            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
-            RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
-            workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
-            pushd  "${workingFolderPath}" > /dev/null  ||  Error
-            rsyncUsed="${True}"
-        else
-            echo  "LOCOMMIT_TMP environment variable is not set though \"${workingFolderPath}\" is Windows shared folder."
-        fi
-    fi
+    StartInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
 
     #// Copy files by "git checkout-index"
     if [ "${gitWorkingRootPath}" == "" ]; then
@@ -187,10 +175,7 @@ function  LocalCommit() {
         echo  'Deleted ".commit" folder extracted from ".commit.zip" file.'
         DeleteFolder  ".commit"
     fi
-    if [ "${rsyncUsed}" == "${True}" ]; then
-        RsyncFromTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
-        popd  > /dev/null
-    fi
+    EndInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
 }
 
 function  Clone() {
@@ -223,30 +208,15 @@ function  Clone() {
     mkdir -p  "${destinationFolderPath}"
     destinationFolderPath="$( readlink -f "${destinationFolderPath}" )"
     repositoryFolderPath="$( readlink -f "${repositoryFolderPath}" )"
-    local  rsyncRepositoryUsed="${False}"
-    if IsWindowsFolder  "${repositoryFolderPath}"; then
-        if [ "${LOCOMMIT_TMP}" != "" ]; then
-            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${repositoryFolderPath}\" is Windows shared folder."
-            RsyncToTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
-            repositoryFolderPath="${LOCOMMIT_TMP}${repositoryFolderPath}"
-            rsyncRepositoryUsed="${True}"
-        else
-            echo  "LOCOMMIT_TMP environment variable is not set though \"${repositoryFolderPath}\" is Windows shared folder."
-        fi
-    fi
-    local  rsyncDestinationUsed="${False}"
-    if IsWindowsFolder  "${destinationFolderPath}"; then
-        if [ "${LOCOMMIT_TMP}" != "" ]; then
-            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${destinationFolderPath}\" is Windows shared folder."
-            RsyncToTemporary  "${destinationFolderPath}"  "${LOCOMMIT_TMP}"
-            destinationFolderPath="${LOCOMMIT_TMP}${destinationFolderPath}"
-            rsyncDestinationUsed="${True}"
-        else
-            echo  "LOCOMMIT_TMP environment variable is not set though \"${destinationFolderPath}\" is Windows shared folder."
-        fi
-    fi
+
+    pushd  "${destinationFolderPath}"  > /dev/null
+    StartInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
+    destinationFolderPath="${PWD}"
 
     pushd  "${repositoryFolderPath}"  > /dev/null
+    StartInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
+    repositoryFolderPath="${PWD}"
+
     if [ -e ".git" ]; then
         local  hasDotGit="${True}"
     else
@@ -299,14 +269,13 @@ function  Clone() {
     GitInit
     git add "."  > /dev/null  2>&1
     git commit -m  "locommit) First commit"  > /dev/null
-    popd  > /dev/null
 
-    if [ "${rsyncRepositoryUsed}" == "${True}" ]; then
-        RsyncFromTemporary  "${repositoryFolderPath}"  "${LOCOMMIT_TMP}"
-    fi
-    if [ "${rsyncDestinationUsed}" == "${True}" ]; then
-        RsyncFromTemporary  "${destinationFolderPath}"  "${LOCOMMIT_TMP}"
-    fi
+    cd  "${repositoryFolderPath}"
+    EndInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
+    popd  > /dev/null
+    cd  "${destinationFolderPath}"
+    EndInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
+    popd  > /dev/null
 }
 
 function  CloneFile() {
@@ -451,20 +420,7 @@ function  PushFolder() {
     DeleteFolder ".commit_theirs"
     DeleteFolder ".commit_old_ours"
     DeleteFolder ".commit_old_base"
-
-    local  workingFolderPath="${PWD}"
-    local  rsyncUsed="${False}"
-    if IsWindowsFolder  "${workingFolderPath}"; then
-        if [ "${LOCOMMIT_TMP}" != "" ]; then
-            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${workingFolderPath}\" is Windows shared folder."
-            RsyncToTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
-            workingFolderPath="${LOCOMMIT_TMP}${workingFolderPath}"
-            pushd  "${workingFolderPath}" > /dev/null  ||  Error
-            local  rsyncUsed="${True}"
-        else
-            echo  "LOCOMMIT_TMP environment variable is not set though \"${workingFolderPath}\" is Windows shared folder."
-        fi
-    fi
+    StartInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
 
     #// (.commit_new case) Update .commit folder
     if [ "${source}" == ".commit_new" ]; then
@@ -493,10 +449,7 @@ function  PushFolder() {
             git commit  -m "locommit push) Updated." > /dev/null
         fi
     fi
-    if [ "${rsyncUsed}" == "${True}" ]; then
-        RsyncFromTemporary  "${workingFolderPath}"  "${LOCOMMIT_TMP}"
-        popd  > /dev/null
-    fi
+    EndInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
 }
 
 function  PushWithoutLocalCommit() {
@@ -527,6 +480,7 @@ function  Pull() {
 }
 
 function  PullSub() {
+#// Set up
     local  repositoryFolderPath_="$1"
     local  option="$2"  #// "--pull" or "--pull-base"
     local  baseFolderRelativePath="$3"  #// This is enabled if option == "--pull-base"
@@ -574,7 +528,7 @@ function  PullSub() {
         fi
     fi
 
-    #// Create ".commit_new" folder
+#// Create ".commit_new" folder
     if [ "${source}" == ".commit" ]; then
         echo  'Created new ".commit_new" folder.'
         LocalCommit > /dev/null
@@ -590,7 +544,7 @@ function  PullSub() {
         DeleteFolder  "${source}/${baseFolderRelativePath}"
     fi
 
-    #// Create ".commit_theirs" folder
+#// Create ".commit_theirs" folder
     #// ".commit_theirs" is a copy of a folder in related repository at
     #// "repositoryFolderPath", except for the files covered by ".gitignore".
         AssertNotExist  "${repositoryFolderPath}/.commit_new"
@@ -616,7 +570,7 @@ function  PullSub() {
         fi
         echo  'Copied a repository folder to ".commit_theirs" folder'
 
-    #// Create ".commit_ours" folder
+#// Create ".commit_ours" folder
     if [ "${source}" == ".commit_new" ]; then
         DeleteFolder  ".commit_ours"
         mv  ".commit_new"  ".commit_ours"
@@ -630,14 +584,14 @@ function  PullSub() {
         echo  'Copied ".commit" folder to ".commit_ours" folder'
     fi
 
-    #// Add to stage in parent .git, if the parent .git includes current folder.
+#// Add to stage in parent .git, if the parent .git includes current folder.
     local  parentDotGit="${False}"
     if [ ! -e ".git" ]; then
         parentDotGit="${True}"
         git add  "."  > /dev/null
     fi
 
-    #// Make a ".git" folder that has "commit_reposiroty" branch
+#// Make a ".git" folder that has "commit_reposiroty" branch
     echo  'Pull from ".commit_theirs" folder'
     local  currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
     ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
@@ -709,7 +663,7 @@ function  PullSub() {
         DeleteFolder  ".commit_temporary_deleting"  #// This command is sometimes rejected because device or resource busy
     popd > /dev/null
 
-    #// Merge
+#// Merge
     #// source: ".commit_theirs" folder
     #// destination: current folder
     if [ "${source}" == ".commit_new" ]; then
@@ -730,7 +684,7 @@ function  PullSub() {
         git branch -D  "__locommit_commit_theirs"  > /dev/null
     fi
 
-    #// Restore .git folder and stage before pull files
+#// Restore .git folder and stage before pull files
     if [ "${theirsCommitID}" != "${oldCommitID}" ]; then
         if [ -e ".commit/.git" ]; then
             cd  ".commit_ours"
@@ -843,6 +797,7 @@ function  PullBase() {
 }
 
 function  PullFile() {
+#// Set up
     local  repositoryFolderPath_="$1"
     local  option="$2"  #// "--pull" or "--pull-base"
     local  baseFolderRelativePath="$3"  #// This is enabled if option == "--pull-base"
@@ -873,7 +828,7 @@ function  PullFile() {
         return
     fi
 
-    #// Create ".commit_theirs" folder
+#// Create ".commit_theirs" folder
     local  destination=".commit_theirs/${fileRelativePath}"
     local  destinationParent="${destination%/*}"
     mkdir -p  "${destinationParent}"
@@ -881,9 +836,9 @@ function  PullFile() {
 
     cp  "${repositoryFolderPath}/${fileRelativePath}"  ".commit_theirs/${fileRelativePath}"
     SetReadOnly  ".commit_theirs/${fileRelativePath}"
-    echo  "Copied a file in repository folder to \".commit_theirs\" folder"
+    echo  'Copied a file in repository folder to ".commit_theirs" folder'
 
-    #// Create ".commit_ours" folder
+#// Create ".commit_ours" folder
     local  destination=".commit_ours/${fileRelativePath}"
     local  destinationParent="${destination%/*}"
     mkdir -p  "${destinationParent}"
@@ -891,29 +846,19 @@ function  PullFile() {
 
     cp  "${fileRelativePath}"  ".commit_ours/${fileRelativePath}"
     SetReadOnly  ".commit_ours/${fileRelativePath}"
-    echo  "Copied a file in current folder to \".commit_ours\" folder"
+    echo  'Copied a file in current folder to ".commit_ours" folder'
 
-    #// Merge
+#// Merge
     #// source: ".commit_theirs" folder
     #// destination: current folder
     DeleteFolder    ".commit_merging"
     mkdir -p  ".commit_merging"
     local  mergingFolderPath="$( readlink -f ".commit_merging" )"
-    local  rsyncUsed="${False}"
-    if IsWindowsFolder  "${mergingFolderPath}"; then
-        if [ "${LOCOMMIT_TMP}" != "" ]; then
-            echo  "Using LOCOMMIT_TMP (${LOCOMMIT_TMP}) because \"${mergingFolderPath}\" is Windows shared folder."
-            RsyncToTemporary  "${mergingFolderPath}"  "${LOCOMMIT_TMP}"
-            mergingFolderPath="${LOCOMMIT_TMP}${mergingFolderPath}"
-            local  rsyncUsed="${True}"
-        else
-            echo  "LOCOMMIT_TMP environment variable is not set though \"${mergingFolderPath}\" is Windows shared folder."
-        fi
-    fi
     local  currentFolder="${PWD}"
     pushd  "${mergingFolderPath}" > /dev/null  ||  Error
+    StartInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
 
-        #// Make common commit
+    #// Make common commit
         cp  "${currentFolder}/.commit/${fileRelativePath}"  "."
         SetNotReadOnly  "${fileName}"
         GitInit
@@ -922,14 +867,14 @@ function  PullFile() {
         local  currentBranch=$( git rev-parse --abbrev-ref HEAD  || echo "(ERROR)" )
         ErrorIfLastIs  "${currentBranch}"  "(ERROR)"
 
-        #// Make commit_theirs
+    #// Make commit_theirs
         cp  "${currentFolder}/.commit_theirs/${fileRelativePath}"  "."
         SetNotReadOnly  "${fileName}"
         git checkout -b "__locommit_commit_theirs" > /dev/null 2>&1  ||  Error
         git add "." > /dev/null
         git commit  -m "locommit pull) commit_theirs" > /dev/null  #// Ignore this command errors
 
-        #// Make commit_ours
+    #// Make commit_ours
         git checkout "${currentBranch}" > /dev/null 2>&1  ||  Error
         cp  "${currentFolder}/.commit_ours/${fileRelativePath}"  "."
         SetNotReadOnly  "${fileName}"
@@ -937,16 +882,14 @@ function  PullFile() {
         git add "." > /dev/null
         git commit  -m "locommit pull) commit_ours" > /dev/null  #// Ignore this command errors
 
-        #// Merge
+    #// Merge
         local  mergeLog="$( git merge  "__locommit_commit_theirs" --no-edit  2>&1  ||  echo "(ERROR)" )"
         if echo "${mergeLog}" | grep "Abort."; then
             echo "${mergeLog}"
             Error  "failed: git merge .commit_theirs"
         fi
-    popd > /dev/null
-    if [ "${rsyncUsed}" == "${True}" ]; then
-        RsyncFromTemporary  "${mergingFolderPath}"  "${LOCOMMIT_TMP}"
-    fi
+    EndInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
+    popd  > /dev/null
 
     cp -ap  ".commit_merging/${fileName}"  "."
     DeleteFolder  ".commit_merging"
@@ -991,6 +934,7 @@ function  InitBarePush() {
     fi
 
     #// Copy files
+    echo  'Create ".commit_init-bare-push" temporary folder.'
     mkdir -p ".commit_init-bare-push"
 
     git checkout-index -fau --prefix=".commit_init-bare-push/"
@@ -1029,7 +973,7 @@ function  InitBarePush() {
     fi
     DeleteFolder  ".commit_init-bare-push"
     AssertNotExist  ".commit_init-bare-push"
-    echo  "Removed \".commit_init-bare-push\" temporary folder."
+    echo  'Removed ".commit_init-bare-push" temporary folder.'
     if [ "${allFilesAreGitAdd}" == "${False}" ]; then
         StartInTemporary  "LOCOMMIT_TMP"  "${LOCOMMIT_TMP}"
         git reset  > /dev/null  2>&1
@@ -1253,6 +1197,7 @@ function  StartInTemporary() {
     if IsWindowsFolder  "${currentFolder}"; then
         if [ "${temporaryPathValue}" != "" ]; then
             echo  "Using ${temporaryPathVariableName} (${temporaryPathValue}) because \"${currentFolder}\" is Windows shared folder."
+            test  "${temporaryPathValue:0:1}" == "/"  ||  Error  "ERROR: ${temporaryPathVariableName} requests full path. temporaryPath: \"${temporaryPathValue}\""
 
             RsyncToTemporary  "${currentFolder}"  "${temporaryPathValue}"
 

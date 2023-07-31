@@ -2106,6 +2106,7 @@ function  StartInTemporary() {
     if IsWindowsFolder  "${currentFolder}"; then
         if [ "${temporaryPathValue}" != "" ]; then
             echo  "Using ${temporaryPathVariableName} (${temporaryPathValue}) because \"${currentFolder}\" is Windows shared folder."
+            test  "${temporaryPathValue:0:1}" == "/"  ||  Error  "ERROR: ${temporaryPathVariableName} requests full path. temporaryPath: \"${temporaryPathValue}\""
 
             RsyncToTemporary  "${currentFolder}"  "${temporaryPathValue}"
 
