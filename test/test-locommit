@@ -1978,7 +1978,7 @@ function  CopyFolder() {
     source="$( CutLastOf  "${source}"  "/" )"
     destination="$( CutLastOf  "${destination}"  "/" )"
     if [ "${ignoreDotGit}" != ""  -a  "${ignoreDotGit}" != "${excludeOption}" ]; then
-        TestError  "Bad option: ${ignoreDotGit}"
+        TestError  "ERROR: Bad option: ${ignoreDotGit}"
         return  "${False}"
     fi
 
@@ -1986,9 +1986,13 @@ function  CopyFolder() {
     if [ "${ignoreDotGit}" == "${excludeOption}" ]; then
         ls -a "${source}" | grep -v  -e "^\.git$"  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
             cp -Rap  "${source}/{}"  "${destination}/"
+        local  exitCodes="${PIPESTATUS[@]}"
+        test "${exitCodes}" == "0 0 0"  ||  Error
     else
         ls -a "${source}" | grep -v  -e "^\.$"  -e "^\.\.$" | xargs  -I {} \
             cp -Rap  "${source}/{}"  "${destination}/"
+        local  exitCodes="${PIPESTATUS[@]}"
+        test "${exitCodes}" == "0 0 0"  ||  Error
     fi
 }
 
